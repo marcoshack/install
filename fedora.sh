@@ -183,6 +183,25 @@ export PATH=$PATH:$GOPATH/bin
 # Create Go workspace
 mkdir -p "$HOME/go"/{bin,src,pkg}
 
+# Install Rust
+log_info "Installing Rust..."
+sudo dnf install -y rust cargo
+
+# Setup Rust environment variables if not already set
+if ! grep -q "CARGO_HOME" "$HOME/.profile" 2>/dev/null; then
+    log_info "Adding Rust environment to ~/.profile..."
+    cat >> "$HOME/.profile" << 'EOF'
+
+# Rust language
+export CARGO_HOME=$HOME/.cargo
+export PATH=$PATH:$CARGO_HOME/bin
+EOF
+fi
+
+# Source the profile for current session
+export CARGO_HOME=$HOME/.cargo
+export PATH=$PATH:$CARGO_HOME/bin
+
 # Configure tmux
 log_info "Setting up tmux configuration..."
 TMUX_CONF_PATH="$HOME/.tmux.conf"
@@ -267,6 +286,10 @@ source $ZSH/oh-my-zsh.sh
 export GOPATH=$HOME/go
 export PATH=$PATH:$GOPATH/bin
 
+# Rust environment
+export CARGO_HOME=$HOME/.cargo
+export PATH=$PATH:$CARGO_HOME/bin
+
 # Editor
 export EDITOR='vim'
 export VISUAL='vim'
@@ -304,6 +327,8 @@ fi
 log_info "Verifying installations..."
 
 command -v go >/dev/null 2>&1 && log_info "✓ Go: $(go version | awk '{print $3}')" || log_error "✗ Go installation failed"
+command -v rustc >/dev/null 2>&1 && log_info "✓ Rust: $(rustc --version | awk '{print $2}')" || log_error "✗ Rust installation failed"
+command -v cargo >/dev/null 2>&1 && log_info "✓ Cargo: $(cargo --version | awk '{print $2}')" || log_error "✗ Cargo installation failed"
 command -v zsh >/dev/null 2>&1 && log_info "✓ Zsh: $(zsh --version)" || log_error "✗ Zsh installation failed"
 command -v fzf >/dev/null 2>&1 && log_info "✓ fzf installed" || log_error "✗ fzf installation failed"
 command -v rg >/dev/null 2>&1 && log_info "✓ ripgrep installed" || log_error "✗ ripgrep installation failed"
@@ -343,6 +368,7 @@ fi
 log_info ""
 log_info "Installed tools:"
 log_info "  - Go (via dnf)"
+log_info "  - Rust (via dnf)"
 log_info "  - Zsh with Oh My Zsh"
 log_info "  - fzf (fuzzy finder)"
 log_info "  - ripgrep (fast grep alternative)"

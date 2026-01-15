@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains automated setup scripts for Linux distributions. The scripts are designed to be executed via one-line curl commands to set up fresh installations with development tools, zsh, and essential utilities.
 
-**Critical Design Constraint**: All functionality must be self-contained within a single `.sh` file per distribution. Users execute these scripts remotely via `curl -fsSL <url> | bash`, so each script must be completely standalone.
+**Critical Design Constraint**: All functionality must be self-contained within a single `.sh` file per distribution. Users execute these scripts remotely via `sh -c "$(curl -fsSL <url>)"`, so each script must be completely standalone.
 
 ## Script Architecture
 
@@ -23,7 +23,7 @@ All distribution scripts follow this standardized flow:
    - Prompt for username/email with existing config detection
 6. **SSH Key Generation**: Create Ed25519 key for GitHub with smart email detection
 7. **CLI Tools**: Install zsh, fzf, ripgrep, bat
-8. **Programming Languages**: Install Go (method varies by distro)
+8. **Programming Languages**: Install Go and Rust (methods vary by distro)
 9. **Oh My Zsh Setup**: Install framework and plugins (zsh-autosuggestions, zsh-syntax-highlighting)
 10. **Zsh Configuration**: Write complete .zshrc with plugins, aliases, and environment
 11. **Default Shell**: Change to zsh
@@ -35,6 +35,7 @@ All distribution scripts follow this standardized flow:
 **Fedora ([fedora.sh](fedora.sh))**:
 - Package manager: `dnf`
 - Go installation: Via `dnf install golang`
+- Rust installation: Via `dnf install rust cargo`
 - Bat command: Works as `bat` directly
 
 **Ubuntu ([ubuntu.sh](ubuntu.sh))**:
@@ -42,6 +43,9 @@ All distribution scripts follow this standardized flow:
 - Go installation: Downloads latest from go.dev, extracts to `/usr/local/go`
   - Auto-detects architecture (amd64, arm64, armv6l)
   - Fetches version dynamically from https://go.dev/VERSION?m=text
+- Rust installation: Via rustup using `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
+  - Non-interactive installation with `-y` flag
+  - Sources `~/.cargo/env` for current session
 - Bat command: Installed as `batcat`, creates symlink to `bat` in `~/.local/bin`
 
 ## Key Implementation Details
@@ -86,9 +90,13 @@ Smart cascade for SSH key email:
 
 ### Path Configuration
 
-Go environment must be added to both:
+Go and Rust environments must be added to both:
 - `~/.profile`: For system-level PATH (source for new sessions)
 - `~/.zshrc`: For immediate zsh usage
+
+Rust specifically:
+- Fedora: Manual `CARGO_HOME` and PATH configuration
+- Ubuntu: Sources `~/.cargo/env` which is created by rustup installer
 
 ## Testing Commands
 
@@ -100,6 +108,8 @@ When modifying scripts, test with these scenarios:
 4. **Verification**: After completion, verify:
    ```bash
    go version
+   rustc --version
+   cargo --version
    zsh --version
    fzf --version
    rg --version
