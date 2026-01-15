@@ -66,10 +66,6 @@ sudo dnf install -y \
 # Configure Git
 log_info "Configuring Git..."
 
-# Force git to use HTTPS instead of SSH for GitHub (SSH key not yet on GitHub)
-git config --global url."https://github.com/".insteadOf git@github.com:
-git config --global url."https://".insteadOf git://
-
 CURRENT_GIT_NAME=$(git config --global user.name 2>/dev/null || echo "")
 CURRENT_GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "")
 
@@ -187,6 +183,33 @@ export PATH=$PATH:$GOPATH/bin
 # Create Go workspace
 mkdir -p "$HOME/go"/{bin,src,pkg}
 
+# Configure tmux
+log_info "Setting up tmux configuration..."
+TMUX_CONF_PATH="$HOME/.tmux.conf"
+
+if [ -f "$TMUX_CONF_PATH" ]; then
+    log_warn "tmux configuration already exists at $TMUX_CONF_PATH"
+    read -p "Do you want to use the provided tmux.conf? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        INSTALL_TMUX_CONF=true
+    fi
+else
+    read -p "Do you want to use the provided tmux.conf? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        INSTALL_TMUX_CONF=true
+    fi
+fi
+
+if [ "$INSTALL_TMUX_CONF" = true ]; then
+    log_info "Downloading tmux configuration..."
+    curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/config/tmux.conf -o "$TMUX_CONF_PATH"
+    log_info "✓ tmux configuration installed successfully"
+else
+    log_info "Skipping tmux configuration"
+fi
+
 # Install Oh My Zsh
 if [ -d "$HOME/.oh-my-zsh" ]; then
     log_warn "Oh My Zsh is already installed"
@@ -285,6 +308,7 @@ command -v zsh >/dev/null 2>&1 && log_info "✓ Zsh: $(zsh --version)" || log_er
 command -v fzf >/dev/null 2>&1 && log_info "✓ fzf installed" || log_error "✗ fzf installation failed"
 command -v rg >/dev/null 2>&1 && log_info "✓ ripgrep installed" || log_error "✗ ripgrep installation failed"
 command -v bat >/dev/null 2>&1 && log_info "✓ bat installed" || log_error "✗ bat installation failed"
+command -v tmux >/dev/null 2>&1 && log_info "✓ tmux installed" || log_error "✗ tmux installation failed"
 [ -d "$HOME/.oh-my-zsh" ] && log_info "✓ Oh My Zsh installed" || log_error "✗ Oh My Zsh installation failed"
 
 log_info ""
@@ -307,10 +331,6 @@ if [ -f "${SSH_KEY_PATH}.pub" ]; then
     log_info "3. Click 'New SSH key'"
     log_info "4. Paste your key and save"
     log_info ""
-    log_info "After adding your SSH key to GitHub, enable SSH for git:"
-    log_info "  git config --global --unset url.\"https://github.com/\".insteadOf"
-    log_info "  git config --global --unset url.\"https://\".insteadOf"
-    log_info ""
 fi
 
 log_info "Next steps:"
@@ -327,6 +347,7 @@ log_info "  - Zsh with Oh My Zsh"
 log_info "  - fzf (fuzzy finder)"
 log_info "  - ripgrep (fast grep alternative)"
 log_info "  - bat (cat with syntax highlighting)"
+log_info "  - tmux (terminal multiplexer)"
 log_info ""
 log_info "Git configuration:"
 FINAL_GIT_NAME=$(git config --global user.name 2>/dev/null || echo "Not configured")
