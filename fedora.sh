@@ -65,6 +65,11 @@ sudo dnf install -y \
 
 # Configure Git
 log_info "Configuring Git..."
+
+# Force git to use HTTPS instead of SSH for GitHub (SSH key not yet on GitHub)
+git config --global url."https://github.com/".insteadOf git@github.com:
+git config --global url."https://".insteadOf git://
+
 CURRENT_GIT_NAME=$(git config --global user.name 2>/dev/null || echo "")
 CURRENT_GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "")
 
@@ -301,6 +306,10 @@ if [ -f "${SSH_KEY_PATH}.pub" ]; then
     log_info "2. Go to https://github.com/settings/keys"
     log_info "3. Click 'New SSH key'"
     log_info "4. Paste your key and save"
+    log_info ""
+    log_info "After adding your SSH key to GitHub, enable SSH for git:"
+    log_info "  git config --global --unset url.\"https://github.com/\".insteadOf"
+    log_info "  git config --global --unset url.\"https://\".insteadOf"
     log_info ""
 fi
 
