@@ -3,7 +3,7 @@
 # Ubuntu Setup Script
 # Sets up a fresh Ubuntu installation with development tools and zsh configuration
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh | bash
+# Usage: bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)"
 #
 
 set -e

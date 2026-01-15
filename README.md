@@ -9,7 +9,7 @@ Automated setup scripts for various Linux distributions with development tools, 
 Run this command to set up a fresh Fedora installation:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh | bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh)"
 ```
 
 ## Ubuntu Setup
@@ -19,6 +19,6 @@ curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/
 Run this command to set up a fresh Ubuntu installation:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh | bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)"
 ```
 

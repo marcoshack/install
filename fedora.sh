@@ -3,7 +3,7 @@
 # Fedora Workstation Setup Script
 # Sets up a fresh Fedora installation with development tools and zsh configuration
 #
-# Usage: curl -fsSL https://gist.githubusercontent.com/YOUR_USERNAME/GIST_ID/raw/fedora-setup.sh | bash
+# Usage: bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh)"
 #
 
 set -e
