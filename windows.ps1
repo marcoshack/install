@@ -35,6 +35,29 @@ function Write-Err {
 }
 
 Write-Info "Starting Windows PowerShell setup..."
+
+# Check if running on Windows
+if (-not $IsWindows -and $PSVersionTable.PSVersion.Major -ge 6) {
+    # PowerShell Core on non-Windows
+    Write-Err "This script is designed for Windows PowerShell, but you're running on a non-Windows system."
+    Write-Info ""
+    Write-Info "For Linux distributions, use one of these scripts instead:"
+    Write-Info "  - Ubuntu:  sh -c `"`$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)`""
+    Write-Info "  - Fedora:  sh -c `"`$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh)`""
+    exit 1
+}
+
+if ($PSVersionTable.PSVersion.Major -lt 6 -and -not [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
+    # Windows PowerShell on non-Windows (unlikely, but let's be thorough)
+    Write-Err "This script is designed for Windows PowerShell on Windows."
+    Write-Info ""
+    Write-Info "For Linux distributions, use one of these scripts instead:"
+    Write-Info "  - Ubuntu:  sh -c `"`$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)`""
+    Write-Info "  - Fedora:  sh -c `"`$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh)`""
+    exit 1
+}
+
+Write-Info "✓ Detected Windows - continuing with setup..."
 #endregion
 
 #region Winget Installation Check

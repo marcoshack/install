@@ -33,6 +33,36 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
+# Detect Linux distribution
+log_info "Detecting Linux distribution..."
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO_ID=$ID
+else
+    log_error "Cannot detect Linux distribution (missing /etc/os-release)"
+    exit 1
+fi
+
+# Check if running on Ubuntu
+if [ "$DISTRO_ID" != "ubuntu" ]; then
+    log_error "This script is designed for Ubuntu, but you're running: $DISTRO_ID"
+    log_error ""
+    case "$DISTRO_ID" in
+        fedora)
+            log_info "For Fedora, use this script instead:"
+            log_info "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh)\""
+            ;;
+        *)
+            log_warn "No installation script is currently available for $DISTRO_ID"
+            log_info "Available scripts:"
+            log_info "  - Ubuntu: https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh"
+            log_info "  - Fedora: https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh"
+            ;;
+    esac
+    exit 1
+fi
+
+log_info "✓ Detected Ubuntu - continuing with setup..."
 log_info "Starting Ubuntu workstation setup..."
 
 # Update system
