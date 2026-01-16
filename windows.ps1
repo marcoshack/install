@@ -69,14 +69,16 @@ Write-Info "Installing CascadiaCode Nerd Font..."
 try {
     # Oh My Posh has a built-in font installer
     if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
-        oh-my-posh font install CascadiaCode --user
+        # Use headless mode to install without TUI
+        oh-my-posh font install CascadiaCode --headless
         Write-Info "✓ CascadiaCode Nerd Font installed"
     } else {
         Write-Warn "Could not install Nerd Font automatically (oh-my-posh not in PATH yet)"
-        Write-Warn "You can manually install it later with: oh-my-posh font install CascadiaCode"
+        Write-Warn "You can manually install it later with: oh-my-posh font install CascadiaCode --headless"
     }
 } catch {
     Write-Warn "Nerd Font installation had issues, you can install it manually later"
+    Write-Warn "Run: oh-my-posh font install CascadiaCode --headless"
 }
 #endregion
 
