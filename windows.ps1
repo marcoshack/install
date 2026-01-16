@@ -65,20 +65,20 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";
 #endregion
 
 #region Install Nerd Fonts
-Write-Info "Installing CascadiaCode Nerd Font..."
+Write-Info "Installing FiraCode Nerd Font..."
 try {
     # Oh My Posh has a built-in font installer
     if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
         # Use headless mode to install without TUI
-        oh-my-posh font install CascadiaCode --headless
-        Write-Info "✓ CascadiaCode Nerd Font installed"
+        oh-my-posh font install FiraCode --headless
+        Write-Info "✓ FiraCode Nerd Font installed"
     } else {
         Write-Warn "Could not install Nerd Font automatically (oh-my-posh not in PATH yet)"
-        Write-Warn "You can manually install it later with: oh-my-posh font install CascadiaCode --headless"
+        Write-Warn "You can manually install it later with: oh-my-posh font install FiraCode --headless"
     }
 } catch {
     Write-Warn "Nerd Font installation had issues, you can install it manually later"
-    Write-Warn "Run: oh-my-posh font install CascadiaCode --headless"
+    Write-Warn "Run: oh-my-posh font install FiraCode --headless"
 }
 #endregion
 
@@ -245,9 +245,7 @@ if (Get-Module -ListAvailable -Name Terminal-Icons) {
 if (Get-Module -ListAvailable -Name PSFzf) {
     Import-Module PSFzf
     Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' `
-                    -PSReadlineChordReverseHistory 'Ctrl+r' `
-                    -EnableAliasFuzzyEdit `
-                    -EnableAliasFuzzyHistory
+                    -PSReadlineChordReverseHistory 'Ctrl+r'
 }
 
 # PSReadLine configuration
@@ -303,7 +301,7 @@ if (Test-Path $wtSettingsPath) {
         $wtSettings = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
 
         # Update default profile font
-        $fontFace = "CaskaydiaCove Nerd Font"
+        $fontFace = "FiraCode Nerd Font"
 
         if ($wtSettings.profiles.defaults) {
             $wtSettings.profiles.defaults | Add-Member -MemberType NoteProperty -Name "font" -Value @{
@@ -321,7 +319,7 @@ if (Test-Path $wtSettingsPath) {
         Write-Info "✓ Windows Terminal font configured to use $fontFace"
     } catch {
         Write-Warn "Could not automatically configure Windows Terminal font"
-        Write-Warn "You may need to manually set the font to 'CaskaydiaCove Nerd Font' in Windows Terminal settings"
+        Write-Warn "You may need to manually set the font to 'FiraCode Nerd Font' in Windows Terminal settings"
     }
 } else {
     Write-Warn "Windows Terminal not found at expected location"
@@ -383,16 +381,17 @@ Write-Info "=========================================="
 Write-Info "Setup completed successfully!"
 Write-Info "=========================================="
 Write-Info ""
+Write-Info "IMPORTANT: Close and reopen Windows Terminal NOW to load the new font!"
+Write-Info ""
 Write-Info "Next steps:"
-Write-Info "1. Close and reopen PowerShell (or Windows Terminal) to see changes"
-Write-Info "2. If the prompt doesn't look right, ensure Windows Terminal is using 'CaskaydiaCove Nerd Font'"
-Write-Info "   - Open Windows Terminal Settings (Ctrl+,)"
-Write-Info "   - Go to Profiles -> Defaults -> Appearance"
-Write-Info "   - Set Font face to 'CaskaydiaCove Nerd Font'"
+Write-Info "1. CLOSE this Windows Terminal window completely (X button or Ctrl+Shift+W)"
+Write-Info "2. Reopen Windows Terminal - your beautiful new prompt should appear!"
+Write-Info "3. If you see a font warning, Windows Terminal needs to be fully restarted"
+Write-Info "   (Close ALL Windows Terminal windows and open a fresh one)"
 Write-Info ""
 Write-Info "Installed components:"
 Write-Info "  - Oh My Posh (prompt theme engine)"
-Write-Info "  - CascadiaCode Nerd Font (for icons and glyphs)"
+Write-Info "  - FiraCode Nerd Font (for icons and glyphs)"
 Write-Info "  - Terminal-Icons (colorful file/folder icons)"
 Write-Info "  - PSReadLine (enhanced command-line editing with 100k history)"
 Write-Info "  - PSFzf (fuzzy finder integration with Ctrl+T and Ctrl+R)"
