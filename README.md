@@ -4,6 +4,8 @@ Automated setup scripts for Linux distributions and Windows PowerShell with deve
 
 ## Table of Contents
 
+- [macOS](#macos)
+  - [macOS Setup](#macos-setup)
 - [Linux Distributions](#linux-distributions)
   - [Fedora Workstation Setup](#fedora-workstation-setup)
   - [Ubuntu Setup](#ubuntu-setup)
@@ -13,6 +15,25 @@ Automated setup scripts for Linux distributions and Windows PowerShell with deve
 - [What Gets Configured](#what-gets-configured)
 - [Requirements](#requirements)
 - [Post-Installation](#post-installation)
+
+## macOS
+
+### macOS Setup
+
+Run this command to set up a fresh macOS installation with development tools:
+
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/macos.sh)"
+```
+
+**Installs:**
+- Xcode Command Line Tools
+- Homebrew package manager
+- Development tools (git, vim, htop, GNU utilities)
+- Programming languages (Go via Homebrew, Rust via rustup, Python via uv)
+- Modern shell (zsh with Oh My Zsh - zsh is default on macOS)
+- CLI tools (fzf, ripgrep, bat, fd, tmux)
+- Git configuration and SSH key generation (with Keychain integration)
 
 ## Linux Distributions
 
@@ -69,6 +90,14 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 
 ## Features
 
+### macOS Script
+- ✅ Full development environment setup via Homebrew
+- ✅ Git configuration with SSH key generation (Keychain integration)
+- ✅ Oh My Zsh with plugins and themes
+- ✅ Essential CLI tools for productivity
+- ✅ Idempotent (safe to re-run)
+- ✅ Interactive prompts for configuration choices
+
 ### Linux Scripts
 - ✅ Full development environment setup
 - ✅ Git configuration with SSH key generation
@@ -87,6 +116,14 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 - ✅ Idempotent (safe to re-run)
 
 ## What Gets Configured
+
+### macOS
+- **Package Manager**: Homebrew installed and configured
+- **Development Tools**: Xcode Command Line Tools, GNU utilities
+- **Programming Languages**: Go (Homebrew), Rust (rustup), Python (uv)
+- **Shell**: zsh with Oh My Zsh, autosuggestions, and syntax highlighting
+- **Git**: Global configuration with username, email, and SSH keys (Keychain integration)
+- **CLI Tools**: Modern alternatives (bat, ripgrep, fd, fzf, tmux)
 
 ### Linux (Fedora & Ubuntu)
 - **Development Tools**: Complete toolchain for C/C++, Go, and Rust
@@ -107,6 +144,11 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 
 ## Requirements
 
+### macOS
+- macOS 10.15 (Catalina) or later
+- Internet connection
+- Admin privileges (will prompt when needed)
+
 ### Linux
 - Fresh Fedora or Ubuntu installation
 - Internet connection
@@ -120,6 +162,12 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 - Windows Terminal recommended
 
 ## Post-Installation
+
+### macOS
+After running the script:
+1. Run `source ~/.zshrc` or start a new terminal session
+2. Add your SSH key to GitHub: https://github.com/settings/keys (use `pbcopy < ~/.ssh/id_ed25519.pub` to copy)
+3. Verify installations with version commands (`go version`, `rustc --version`, `uv --version`)
 
 ### Linux
 After running the script:
