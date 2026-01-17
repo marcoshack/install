@@ -78,10 +78,11 @@ log_info "  4. SSH Key Generation"
 log_info "  5. CLI Tools Installation (zsh, fzf, ripgrep, bat, tmux)"
 log_info "  6. Go Installation"
 log_info "  7. Rust Installation"
-log_info "  8. Tmux Configuration"
-log_info "  9. Oh My Zsh Installation"
-log_info " 10. Zsh Configuration"
-log_info " 11. Default Shell Change"
+log_info "  8. Python Installation"
+log_info "  9. Tmux Configuration"
+log_info " 10. Oh My Zsh Installation"
+log_info " 11. Zsh Configuration"
+log_info " 12. Default Shell Change"
 log_info ""
 
 # Initialize skip flags
@@ -406,11 +407,40 @@ EOF
     fi
 fi
 
-# Step 8: Configure tmux
+# Step 8: Install Python 3.14 and uv
 if should_skip_step 8; then
-    log_warn "Skipping Step 8: Tmux Configuration"
+    log_warn "Skipping Step 8: Python Installation"
 else
-    log_info "Step 8: Setting up tmux configuration..."
+    log_info "Step 8: Installing Python 3.14..."
+
+    # Add deadsnakes PPA for Python 3.14
+    if ! grep -q "^deb .*deadsnakes/ppa" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+        log_info "Adding deadsnakes PPA..."
+        sudo add-apt-repository ppa:deadsnakes/ppa -y
+        sudo apt update
+    fi
+
+    sudo apt install -y python3.14 python3.14-venv python3.14-dev
+    log_info "✓ Python 3.14 installed successfully"
+
+    # Set Python 3.14 as the default python3
+    log_info "Setting Python 3.14 as default..."
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.14 1
+    sudo update-alternatives --set python3 /usr/bin/python3.14
+    log_info "✓ Python 3.14 is now the default python3"
+
+    log_info "Installing uv (Python package manager)..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Add uv to PATH for current session
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+
+# Step 9: Configure tmux
+if should_skip_step 9; then
+    log_warn "Skipping Step 9: Tmux Configuration"
+else
+    log_info "Step 9: Setting up tmux configuration..."
     TMUX_CONF_PATH="$HOME/.tmux.conf"
 
     if [ -f "$TMUX_CONF_PATH" ]; then
@@ -437,11 +467,11 @@ else
     fi
 fi
 
-# Step 9: Install Oh My Zsh
-if should_skip_step 9; then
-    log_warn "Skipping Step 9: Oh My Zsh Installation"
+# Step 10: Install Oh My Zsh
+if should_skip_step 10; then
+    log_warn "Skipping Step 10: Oh My Zsh Installation"
 else
-    log_info "Step 9: Installing Oh My Zsh..."
+    log_info "Step 10: Installing Oh My Zsh..."
     if [ -d "$HOME/.oh-my-zsh" ]; then
         log_warn "Oh My Zsh is already installed"
         read -p "Do you want to reinstall Oh My Zsh? (y/N): " -n 1 -r
@@ -473,11 +503,11 @@ else
     fi
 fi
 
-# Step 10: Create/update .zshrc
-if should_skip_step 10; then
-    log_warn "Skipping Step 10: Zsh Configuration"
+# Step 11: Create/update .zshrc
+if should_skip_step 11; then
+    log_warn "Skipping Step 11: Zsh Configuration"
 else
-    log_info "Step 10: Configuring .zshrc..."
+    log_info "Step 11: Configuring .zshrc..."
     cat > "$HOME/.zshrc" << 'EOF'
 # Path to oh-my-zsh installation
 export ZSH="$HOME/.oh-my-zsh"
@@ -508,7 +538,7 @@ if [ -f "$HOME/.cargo/env" ]; then
     . "$HOME/.cargo/env"
 fi
 
-# bat symlink for Ubuntu
+# Python uv and bat symlink for Ubuntu
 export PATH=$HOME/.local/bin:$PATH
 
 # Editor
@@ -537,16 +567,16 @@ setopt SHARE_HISTORY
 EOF
 fi
 
-# Step 11: Change default shell to zsh
-if should_skip_step 11; then
-    log_warn "Skipping Step 11: Default Shell Change"
+# Step 12: Change default shell to zsh
+if should_skip_step 12; then
+    log_warn "Skipping Step 12: Default Shell Change"
 else
     if [ "$SHELL" != "$(which zsh)" ]; then
-        log_info "Step 11: Changing default shell to zsh..."
+        log_info "Step 12: Changing default shell to zsh..."
         sudo chsh -s "$(which zsh)" "$USER"
         log_warn "You'll need to log out and back in for the shell change to take effect"
     else
-        log_info "Step 11: Default shell is already zsh"
+        log_info "Step 12: Default shell is already zsh"
     fi
 fi
 
@@ -556,6 +586,8 @@ log_info "Verifying installations..."
 command -v go >/dev/null 2>&1 && log_info "✓ Go: $(go version | awk '{print $3}')" || log_error "✗ Go installation failed"
 command -v rustc >/dev/null 2>&1 && log_info "✓ Rust: $(rustc --version | awk '{print $2}')" || log_error "✗ Rust installation failed"
 command -v cargo >/dev/null 2>&1 && log_info "✓ Cargo: $(cargo --version | awk '{print $2}')" || log_error "✗ Cargo installation failed"
+command -v python3 >/dev/null 2>&1 && log_info "✓ Python: $(python3 --version | awk '{print $2}')" || log_error "✗ Python installation failed"
+command -v uv >/dev/null 2>&1 && log_info "✓ uv: $(uv --version)" || log_error "✗ uv installation failed"
 command -v zsh >/dev/null 2>&1 && log_info "✓ Zsh: $(zsh --version)" || log_error "✗ Zsh installation failed"
 command -v fzf >/dev/null 2>&1 && log_info "✓ fzf installed" || log_error "✗ fzf installation failed"
 command -v rg >/dev/null 2>&1 && log_info "✓ ripgrep installed" || log_error "✗ ripgrep installation failed"
@@ -596,6 +628,8 @@ log_info ""
 log_info "Installed tools:"
 log_info "  - Go (from official binaries: $GO_VERSION)"
 log_info "  - Rust (via rustup)"
+log_info "  - Python 3.14 (via deadsnakes PPA)"
+log_info "  - uv (Python package manager)"
 log_info "  - Zsh with Oh My Zsh"
 log_info "  - fzf (fuzzy finder)"
 log_info "  - ripgrep (fast grep alternative)"

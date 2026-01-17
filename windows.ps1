@@ -164,6 +164,36 @@ try {
 }
 #endregion
 
+#region Install Python 3.14 and uv via winget
+Write-Info "Installing Python 3.14..."
+try {
+    if (-not (Get-Command python3.14 -ErrorAction SilentlyContinue)) {
+        winget install Python.Python.3.14 --silent --accept-source-agreements --accept-package-agreements
+        Write-Info "✓ Python 3.14 installed"
+        # Refresh PATH
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    } else {
+        Write-Info "Python 3.14 is already installed"
+    }
+} catch {
+    Write-Warn "Python 3.14 installation failed, but continuing..."
+}
+
+Write-Info "Installing uv (Python package manager)..."
+try {
+    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+        powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+        Write-Info "✓ uv installed"
+        # Refresh PATH
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    } else {
+        Write-Info "uv is already installed"
+    }
+} catch {
+    Write-Warn "uv installation failed, but continuing..."
+}
+#endregion
+
 #region Create PowerShell Profile
 Write-Info "Setting up PowerShell profile..."
 
@@ -385,6 +415,20 @@ if (Get-Command fzf -ErrorAction SilentlyContinue) {
     Write-Warn "✗ fzf not found"
 }
 
+if (Get-Command python3.14 -ErrorAction SilentlyContinue) {
+    $version = python3.14 --version
+    Write-Info "✓ Python: $version"
+} else {
+    Write-Warn "✗ Python 3.14 not found"
+}
+
+if (Get-Command uv -ErrorAction SilentlyContinue) {
+    $version = uv --version
+    Write-Info "✓ uv: $version"
+} else {
+    Write-Warn "✗ uv not found"
+}
+
 if (Test-Path $PROFILE) {
     Write-Info "✓ PowerShell profile configured"
 } else {
@@ -419,6 +463,8 @@ Write-Info "  - Terminal-Icons (colorful file/folder icons)"
 Write-Info "  - PSReadLine (enhanced command-line editing with 100k history)"
 Write-Info "  - PSFzf (fuzzy finder integration with Ctrl+T and Ctrl+R)"
 Write-Info "  - fzf (command-line fuzzy finder)"
+Write-Info "  - Python 3.14"
+Write-Info "  - uv (Python package manager)"
 Write-Info ""
 Write-Info "PSFzf Key Bindings:"
 Write-Info "  Ctrl+T - Fuzzy find files/folders in current directory"
