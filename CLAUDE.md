@@ -8,7 +8,7 @@ This repository contains automated setup scripts for Linux distributions and Win
 
 **Linux distributions**: Complete development environment with Go, Rust, Git, zsh, and essential CLI tools.
 
-**Windows PowerShell**: Beautiful shell customization with Oh My Posh, fuzzy finder, enhanced history, and Git aliases. Focuses on shell experience rather than development tools (which are typically done in WSL).
+**Windows PowerShell**: Beautiful shell customization with Starship, fuzzy finder, enhanced history, and Git aliases. Focuses on shell experience rather than development tools (which are typically done in WSL).
 
 **Critical Design Constraint**: All functionality must be self-contained within a single file per platform:
 - Linux: `.sh` files executed via `sh -c "$(curl -fsSL <url>)"`
@@ -32,7 +32,7 @@ All Linux distribution scripts follow this standardized flow:
 6. **SSH Key Generation**: Create Ed25519 key for GitHub with smart email detection
 7. **CLI Tools**: Install zsh, fzf, ripgrep, bat
 8. **Programming Languages**: Install Go and Rust (methods vary by distro)
-9. **Oh My Zsh Setup**: Install framework and plugins (zsh-autosuggestions, zsh-syntax-highlighting)
+9. **Starship + Plugins Setup**: Install Starship via package manager (or upstream installer on Ubuntu), plus `zsh-autosuggestions` and `zsh-syntax-highlighting` from the OS package manager, and write `~/.config/starship.toml`
 10. **Zsh Configuration**: Write complete .zshrc with plugins, aliases, and environment
 11. **Default Shell**: Change to zsh
 12. **Verification**: Check all installations succeeded
@@ -63,18 +63,18 @@ The Windows script ([windows.ps1](windows.ps1)) focuses on shell customization r
 1. **Administrative Check**: Requires running as administrator
 2. **Helper Functions**: Colored output helpers (Write-Info, Write-Warn, Write-Err)
 3. **Winget Verification**: Ensures winget is available for package management
-4. **Oh My Posh Installation**: Installs or upgrades Oh My Posh via winget
-5. **Nerd Font Installation**: Installs CascadiaCode Nerd Font using Oh My Posh's font installer
+4. **Starship Installation**: Installs or upgrades Starship via winget (`Starship.Starship`)
+5. **Nerd Font Installation**: Downloads and installs FiraCode Nerd Font from the Nerd Fonts GitHub release
 6. **PowerShell Modules**: Installs Terminal-Icons, PSReadLine, and PSFzf
 7. **Command-line Tools**: Installs fzf via winget
 8. **Profile Configuration**: Creates PowerShell profile with:
-   - Oh My Posh initialization with custom theme
+   - Starship initialization (`Invoke-Expression (&starship init powershell)`)
    - Terminal-Icons import
    - PSFzf configuration (Ctrl+T for file finder, Ctrl+R for history search)
    - PSReadLine configuration (history search, predictions, key bindings, 100k history)
    - Git aliases (matching the user's existing aliases)
    - Utility aliases (ll, .., ..., wsl-here)
-9. **Theme Configuration**: Creates ohmyposh.json matching user's existing theme
+9. **Starship Config**: Writes `~/.config/starship.toml` matching the user's minimal config (no newline, single line, `$` character)
 10. **Windows Terminal Configuration**: Automatically sets Nerd Font in Windows Terminal if installed
 11. **Verification**: Checks all installations succeeded
 12. **Summary Display**: Shows next steps, available aliases, and PSFzf key bindings
@@ -83,7 +83,7 @@ The Windows script ([windows.ps1](windows.ps1)) focuses on shell customization r
 - No user prompts (fully automated with `--silent`, `--accept-source-agreements`, `-Force` flags)
 - Uses winget for package management where possible
 - Preserves user's existing Git aliases from their configuration
-- Integrates user's existing Oh My Posh theme configuration
+- Uses Starship as the prompt engine with a shared cross-platform config (`~/.config/starship.toml`)
 - Configures PSReadLine for enhanced command-line experience
 
 ## Key Implementation Details
@@ -95,11 +95,10 @@ The Windows script ([windows.ps1](windows.ps1)) focuses on shell customization r
 - All PowerShell module installations use `-Force -Scope CurrentUser`
 - No confirmation prompts for file overwrites
 
-**Profile and Theme Management**:
+**Profile and Prompt Management**:
 - PowerShell profile: `$PROFILE` (typically `~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1`)
-- Oh My Posh theme: Stored alongside profile as `ohmyposh.json`
-- Theme configuration matches user's existing `/mnt/d/Workspaces/shell/dotfiles/ohmyposh.json`
-- Profile includes all settings from user's existing profile with PSFzf, PSReadLine (100k history), and Terminal-Icons
+- Starship config: `~/.config/starship.toml` (same path used on macOS/Linux)
+- Profile includes Starship init, PSFzf, PSReadLine (100k history), and Terminal-Icons
 
 **Git Aliases**:
 The script creates PowerShell functions that mirror the user's existing Git workflow:
@@ -108,8 +107,8 @@ The script creates PowerShell functions that mirror the user's existing Git work
 - Includes `gdiffdump` function that generates timestamped diff files
 
 **Font Configuration**:
-- Installs CascadiaCode Nerd Font via Oh My Posh's built-in installer
-- Automatically configures Windows Terminal to use "CaskaydiaCove Nerd Font"
+- Downloads FiraCode Nerd Font from the Nerd Fonts GitHub release and installs into `%WINDIR%\Fonts`
+- Automatically configures Windows Terminal to use "FiraCode Nerd Font"
 - Provides manual configuration instructions if automatic setup fails
 
 **PSFzf Integration**:
@@ -128,7 +127,7 @@ git config --global url."https://".insteadOf git://
 ```
 
 This is required because:
-- Oh My Zsh and plugins are cloned from GitHub
+- Starship's upstream installer and some plugins may need GitHub access
 - SSH key hasn't been uploaded to GitHub yet
 - User instructions include how to reverse this after uploading SSH key
 
@@ -137,7 +136,8 @@ This is required because:
 Scripts check for existing configurations and prompt before overwriting:
 - Git username/email
 - SSH keys
-- Oh My Zsh installation
+
+For `~/.config/starship.toml` (all platforms), scripts skip writing if the file already exists and log a warning. No prompt — the existing config is preserved as-is. Otherwise the file is downloaded from [config/starship.toml](config/starship.toml) (same pattern as `config/tmux.conf`).
 
 Pattern used throughout:
 ```bash
@@ -191,12 +191,13 @@ When modifying scripts, test with these scenarios:
 2. **Re-run**: Run script again on already-configured system (should upgrade/update)
 3. **Verification**: After completion, verify in a new PowerShell session:
    ```powershell
-   oh-my-posh --version
+   starship --version
    fzf --version
    Get-Module -ListAvailable Terminal-Icons
    Get-Module -ListAvailable PSReadLine
    Get-Module -ListAvailable PSFzf
    Test-Path $PROFILE
+   Test-Path "$env:USERPROFILE\.config\starship.toml"
    # Test that prompt is themed and Git aliases work
    gst  # Should run git status
    # Test PSFzf keybindings

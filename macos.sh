@@ -62,7 +62,7 @@ log_info "  7. Go Installation"
 log_info "  8. Rust Installation"
 log_info "  9. Python and uv Installation"
 log_info " 10. Tmux Configuration"
-log_info " 11. Oh My Zsh Installation"
+log_info " 11. Starship and Zsh Plugins Installation"
 log_info " 12. Zsh Configuration"
 log_info ""
 
@@ -431,39 +431,27 @@ else
     fi
 fi
 
-# Step 11: Install Oh My Zsh
+# Step 11: Install Starship and Zsh plugins
 if should_skip_step 11; then
-    log_warn "Skipping Step 11: Oh My Zsh Installation"
+    log_warn "Skipping Step 11: Starship and Zsh Plugins Installation"
 else
-    log_info "Step 11: Installing Oh My Zsh..."
-    if [ -d "$HOME/.oh-my-zsh" ]; then
-        log_warn "Oh My Zsh is already installed"
-        read -p "Do you want to reinstall Oh My Zsh? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Removing existing Oh My Zsh installation..."
-            rm -rf "$HOME/.oh-my-zsh"
-            INSTALL_OMZ=true
-        fi
+    log_info "Step 11: Installing Starship prompt and zsh plugins..."
+    brew install \
+        starship \
+        zsh-autosuggestions \
+        zsh-syntax-highlighting
+
+    # Write starship config
+    STARSHIP_CONFIG_DIR="$HOME/.config"
+    STARSHIP_CONFIG_PATH="$STARSHIP_CONFIG_DIR/starship.toml"
+    mkdir -p "$STARSHIP_CONFIG_DIR"
+
+    if [ -f "$STARSHIP_CONFIG_PATH" ]; then
+        log_warn "Starship config already exists at $STARSHIP_CONFIG_PATH - keeping existing config"
     else
-        INSTALL_OMZ=true
-    fi
-
-    if [ "$INSTALL_OMZ" = true ]; then
-        log_info "Installing Oh My Zsh..."
-        RUNZSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-    fi
-
-    # Install zsh-autosuggestions plugin
-    if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then
-        log_info "Installing zsh-autosuggestions..."
-        git clone https://github.com/zsh-users/zsh-autosuggestions "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
-    fi
-
-    # Install zsh-syntax-highlighting plugin
-    if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" ]; then
-        log_info "Installing zsh-syntax-highlighting..."
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
+        log_info "Downloading Starship configuration..."
+        curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/config/starship.toml -o "$STARSHIP_CONFIG_PATH"
+        log_info "✓ Starship config written to $STARSHIP_CONFIG_PATH"
     fi
 fi
 
@@ -481,29 +469,23 @@ else
     fi
 
     cat > "$HOME/.zshrc" << EOF
-# Path to oh-my-zsh installation
-export ZSH="\$HOME/.oh-my-zsh"
-
-# Theme
-ZSH_THEME="robbyrussell"
-
-# Plugins
-plugins=(
-    git
-    golang
-    rust
-    fzf
-    macos
-    zsh-autosuggestions
-    zsh-syntax-highlighting
-)
-
-source \$ZSH/oh-my-zsh.sh
-
-# User configuration
-
 # Homebrew
 eval "\$(${BREW_PREFIX}/bin/brew shellenv)"
+
+# History
+HISTSIZE=50000
+SAVEHIST=50000
+setopt HIST_IGNORE_DUPS SHARE_HISTORY
+
+# Completion
+autoload -Uz compinit && compinit
+
+# Prompt
+eval "\$(starship init zsh)"
+
+# Plugins
+source ${BREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source ${BREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # Go environment
 export GOPATH=\$HOME/go
@@ -512,8 +494,8 @@ export PATH=\$PATH:\$GOPATH/bin
 # Rust environment
 [ -f "\$HOME/.cargo/env" ] && source "\$HOME/.cargo/env"
 
-# Python uv
-export PATH=\$HOME/.local/bin:\$PATH
+# Local bin (Python uv etc.)
+export PATH="\$HOME/.local/bin:\$PATH"
 
 # Editor
 export EDITOR='vim'
@@ -529,16 +511,8 @@ alias grep='grep --color=auto'
 alias cat='bat --style=plain --paging=never'
 alias find='fd'
 
-# fzf configuration
+# fzf
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-# History configuration
-HISTSIZE=10000
-SAVEHIST=10000
-setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_FIND_NO_DUPS
-setopt SHARE_HISTORY
-
 EOF
 fi
 
@@ -559,7 +533,7 @@ command -v rg >/dev/null 2>&1 && log_info "✓ ripgrep installed" || log_error "
 command -v bat >/dev/null 2>&1 && log_info "✓ bat installed" || log_error "✗ bat installation failed"
 command -v fd >/dev/null 2>&1 && log_info "✓ fd installed" || log_error "✗ fd installation failed"
 command -v tmux >/dev/null 2>&1 && log_info "✓ tmux installed" || log_error "✗ tmux installation failed"
-[ -d "$HOME/.oh-my-zsh" ] && log_info "✓ Oh My Zsh installed" || log_error "✗ Oh My Zsh installation failed"
+command -v starship >/dev/null 2>&1 && log_info "✓ Starship: $(starship --version | head -1)" || log_error "✗ Starship installation failed"
 
 log_info ""
 log_info "=========================================="
@@ -595,7 +569,7 @@ log_info "  - Go (via Homebrew)"
 log_info "  - Rust (via rustup)"
 log_info "  - Python (via uv)"
 log_info "  - uv (Python package manager)"
-log_info "  - Zsh with Oh My Zsh"
+log_info "  - Zsh with Starship prompt and plugins (autosuggestions, syntax highlighting)"
 log_info "  - fzf (fuzzy finder)"
 log_info "  - ripgrep (fast grep alternative)"
 log_info "  - bat (cat with syntax highlighting)"

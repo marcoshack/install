@@ -1,0 +1,11 @@
+# Don't add blank line before each prompt
+add_newline = false
+
+# Force single-line by disabling the line break before the character
+[line_break]
+disabled = true
+
+# Use $ instead of ❯
+[character]
+success_symbol = "[\\$](bold green)"
+error_symbol = "[\\$](bold red)"

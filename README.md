@@ -31,7 +31,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/he
 - Homebrew package manager
 - Development tools (git, vim, htop, GNU utilities)
 - Programming languages (Go via Homebrew, Rust via rustup, Python via uv)
-- Modern shell (zsh with Oh My Zsh - zsh is default on macOS)
+- Modern shell (zsh with Starship prompt, zsh-autosuggestions, zsh-syntax-highlighting - zsh is default on macOS)
 - CLI tools (fzf, ripgrep, bat, fd, tmux)
 - Git configuration and SSH key generation (with Keychain integration)
 
@@ -48,7 +48,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/he
 **Installs:**
 - Development tools (gcc, make, build essentials)
 - Programming languages (Go, Rust)
-- Modern shell (zsh with Oh My Zsh)
+- Modern shell (zsh with Starship prompt, zsh-autosuggestions, zsh-syntax-highlighting)
 - CLI tools (fzf, ripgrep, bat, tmux)
 - Git configuration and SSH key generation
 
@@ -63,7 +63,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/he
 **Installs:**
 - Development tools (build-essential, gcc, g++)
 - Programming languages (Go from official binaries, Rust via rustup)
-- Modern shell (zsh with Oh My Zsh)
+- Modern shell (zsh with Starship prompt, zsh-autosuggestions, zsh-syntax-highlighting)
 - CLI tools (fzf, ripgrep, bat, tmux)
 - Git configuration and SSH key generation
 
@@ -78,8 +78,8 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 ```
 
 **Installs:**
-- Oh My Posh (prompt theme engine)
-- CascadiaCode Nerd Font (for icons and glyphs)
+- Starship (cross-shell prompt)
+- FiraCode Nerd Font (for icons and glyphs)
 - Terminal-Icons (colorful file/folder icons)
 - PSReadLine (enhanced command-line editing with 100k history)
 - PSFzf + fzf (fuzzy finder with Ctrl+T and Ctrl+R)
@@ -93,7 +93,7 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 ### macOS Script
 - ✅ Full development environment setup via Homebrew
 - ✅ Git configuration with SSH key generation (Keychain integration)
-- ✅ Oh My Zsh with plugins and themes
+- ✅ Starship prompt with zsh plugins (autosuggestions, syntax highlighting)
 - ✅ Essential CLI tools for productivity
 - ✅ Idempotent (safe to re-run)
 - ✅ Interactive prompts for configuration choices
@@ -107,7 +107,7 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 - ✅ Interactive prompts for configuration choices
 
 ### Windows Script
-- ✅ Beautiful PowerShell prompt with Oh My Posh
+- ✅ Cross-shell prompt with Starship
 - ✅ Fuzzy finder integration (PSFzf)
 - ✅ Enhanced history and autocomplete
 - ✅ Git aliases for common workflows
@@ -121,19 +121,19 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 - **Package Manager**: Homebrew installed and configured
 - **Development Tools**: Xcode Command Line Tools, GNU utilities
 - **Programming Languages**: Go (Homebrew), Rust (rustup), Python (uv)
-- **Shell**: zsh with Oh My Zsh, autosuggestions, and syntax highlighting
+- **Shell**: zsh with Starship prompt, zsh-autosuggestions, and zsh-syntax-highlighting
 - **Git**: Global configuration with username, email, and SSH keys (Keychain integration)
 - **CLI Tools**: Modern alternatives (bat, ripgrep, fd, fzf, tmux)
 
 ### Linux (Fedora & Ubuntu)
 - **Development Tools**: Complete toolchain for C/C++, Go, and Rust
-- **Shell**: zsh with Oh My Zsh, autosuggestions, and syntax highlighting
+- **Shell**: zsh with Starship prompt, zsh-autosuggestions, and zsh-syntax-highlighting
 - **Git**: Global configuration with username, email, and SSH keys
 - **CLI Tools**: Modern alternatives (bat for cat, ripgrep for grep, fzf for fuzzy finding)
 - **Terminal Multiplexer**: tmux with custom configuration
 
 ### Windows (PowerShell)
-- **Prompt**: Oh My Posh with custom theme (path, git status, dotnet version)
+- **Prompt**: Starship with custom config (`~/.config/starship.toml`)
 - **Modules**: Terminal-Icons, PSReadLine, PSFzf
 - **Key Bindings**:
   - Ctrl+T: Fuzzy find files/folders
@@ -178,7 +178,7 @@ After running the script:
 ### Windows
 After running the script:
 1. Close and reopen PowerShell/Windows Terminal
-2. If fonts don't look right, manually set Windows Terminal to use "CaskaydiaCove Nerd Font"
+2. If fonts don't look right, manually set Windows Terminal to use "FiraCode Nerd Font"
 3. Try the fuzzy finder: Press Ctrl+T or Ctrl+R
 4. Test Git aliases: Run `gst` to see git status
 

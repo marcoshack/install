@@ -4,7 +4,7 @@
     Windows PowerShell Setup Script
 
 .DESCRIPTION
-    Sets up PowerShell with Oh My Posh, Nerd Fonts, and custom configuration.
+    Sets up PowerShell with Starship prompt, Nerd Fonts, and custom configuration.
     Designed for Windows environments where development is primarily done in WSL.
 
 .NOTES
@@ -69,39 +69,52 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 Write-Info "✓ winget is available"
 #endregion
 
-#region Install Oh My Posh
-Write-Info "Installing Oh My Posh..."
+#region Install Starship
+Write-Info "Installing Starship..."
 try {
-    if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
-        Write-Info "Oh My Posh is already installed, upgrading..."
-        winget upgrade JanDeDobbeleer.OhMyPosh --silent --accept-source-agreements --accept-package-agreements
+    if (Get-Command starship -ErrorAction SilentlyContinue) {
+        Write-Info "Starship is already installed, upgrading..."
+        winget upgrade Starship.Starship --silent --accept-source-agreements --accept-package-agreements
     } else {
-        winget install JanDeDobbeleer.OhMyPosh --silent --accept-source-agreements --accept-package-agreements
+        winget install Starship.Starship --silent --accept-source-agreements --accept-package-agreements
     }
-    Write-Info "✓ Oh My Posh installed successfully"
+    Write-Info "✓ Starship installed successfully"
 } catch {
-    Write-Warn "Oh My Posh installation had issues, but continuing..."
+    Write-Warn "Starship installation had issues, but continuing..."
 }
 
-# Refresh environment variables to pick up Oh My Posh
+# Refresh environment variables to pick up Starship
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 #endregion
 
 #region Install Nerd Fonts
 Write-Info "Installing FiraCode Nerd Font..."
 try {
-    # Oh My Posh has a built-in font installer
-    if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
-        # Use headless mode to install without TUI
-        oh-my-posh font install FiraCode --headless
-        Write-Info "✓ FiraCode Nerd Font installed"
-    } else {
-        Write-Warn "Could not install Nerd Font automatically (oh-my-posh not in PATH yet)"
-        Write-Warn "You can manually install it later with: oh-my-posh font install FiraCode --headless"
+    # Download and install FiraCode Nerd Font from the Nerd Fonts release
+    $fontZipUrl = "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
+    $tempDir = Join-Path $env:TEMP "nerd-fonts-firacode"
+    $zipPath = Join-Path $env:TEMP "FiraCode.zip"
+
+    if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+
+    Invoke-WebRequest -Uri $fontZipUrl -OutFile $zipPath -UseBasicParsing
+    Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+
+    $fontsFolder = (New-Object -ComObject Shell.Application).Namespace(0x14)
+    Get-ChildItem -Path $tempDir -Recurse -Include *.ttf, *.otf | ForEach-Object {
+        $destPath = Join-Path "$env:WINDIR\Fonts" $_.Name
+        if (-not (Test-Path $destPath)) {
+            $fontsFolder.CopyHere($_.FullName, 0x10)
+        }
     }
+
+    Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+    Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Info "✓ FiraCode Nerd Font installed"
 } catch {
     Write-Warn "Nerd Font installation had issues, you can install it manually later"
-    Write-Warn "Run: oh-my-posh font install FiraCode --headless"
+    Write-Warn "Download from: https://github.com/ryanoasis/nerd-fonts/releases/latest"
 }
 #endregion
 
@@ -202,91 +215,26 @@ if (-not (Test-Path $profileDir)) {
     New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
 }
 
-# Create Oh My Posh theme configuration
-$themeConfig = @{
-    '$schema' = 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json'
-    'blocks' = @(
-        @{
-            'type' = 'prompt'
-            'alignment' = 'left'
-            'segments' = @(
-                @{
-                    'properties' = @{
-                        'prefix' = ' '
-                        'style' = 'folder'
-                    }
-                    'leading_diamond' = ''
-                    'trailing_diamond' = ''
-                    'foreground' = '#ffffff'
-                    'powerline_symbol' = ''
-                    'background' = '#ff479c'
-                    'type' = 'path'
-                    'style' = 'diamond'
-                },
-                @{
-                    'properties' = @{
-                        'display_stash_count' = $true
-                        'display_status' = $true
-                        'display_upstream_icon' = $true
-                    }
-                    'foreground' = '#193549'
-                    'powerline_symbol' = ''
-                    'background' = '#fffb38'
-                    'type' = 'git'
-                    'style' = 'powerline'
-                },
-                @{
-                    'properties' = @{
-                        'display_version' = $true
-                        'prefix' = ' '
-                    }
-                    'foreground' = '#ffffff'
-                    'powerline_symbol' = ''
-                    'background' = '#6CA35E'
-                    'type' = 'dotnet'
-                    'style' = 'powerline'
-                },
-                @{
-                    'foreground' = '#ffffff'
-                    'powerline_symbol' = ''
-                    'background' = '#ffff66'
-                    'type' = 'root'
-                    'style' = 'powerline'
-                },
-                @{
-                    'properties' = @{
-                        'always_enabled' = $false
-                        'color_background' = $true
-                        'display_exit_code' = $false
-                        'error_color' = '#f1184c'
-                        'prefix' = ' '
-                    }
-                    'trailing_diamond' = ''
-                    'foreground' = '#ffffff'
-                    'powerline_symbol' = ''
-                    'background' = '#2e9599'
-                    'type' = 'exit'
-                    'style' = 'powerline'
-                }
-            )
-        }
-    )
-    'version' = 3
-    'final_space' = $true
+# Create Starship config at ~/.config/starship.toml
+$starshipConfigDir = Join-Path $env:USERPROFILE ".config"
+if (-not (Test-Path $starshipConfigDir)) {
+    New-Item -ItemType Directory -Path $starshipConfigDir -Force | Out-Null
 }
+$starshipConfigPath = Join-Path $starshipConfigDir "starship.toml"
 
-$themeConfigPath = Join-Path $profileDir "ohmyposh.json"
-$themeConfig | ConvertTo-Json -Depth 10 | Set-Content -Path $themeConfigPath -Encoding UTF8
-Write-Info "✓ Oh My Posh theme configuration created at: $themeConfigPath"
+if (Test-Path $starshipConfigPath) {
+    Write-Warn "Starship config already exists at $starshipConfigPath - keeping existing config"
+} else {
+    Write-Info "Downloading Starship configuration..."
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/config/starship.toml" -OutFile $starshipConfigPath -UseBasicParsing
+    Write-Info "✓ Starship config created at: $starshipConfigPath"
+}
 
 # Create PowerShell profile
 $profileContent = @'
-# Oh My Posh
-$ohmyposhConfig = Join-Path $PSScriptRoot "ohmyposh.json"
-if (Test-Path $ohmyposhConfig) {
-    oh-my-posh init pwsh --config $ohmyposhConfig | Invoke-Expression
-} else {
-    oh-my-posh init pwsh | Invoke-Expression
+# Starship prompt
+if (Get-Command starship -ErrorAction SilentlyContinue) {
+    Invoke-Expression (&starship init powershell)
 }
 
 # Terminal-Icons
@@ -383,11 +331,11 @@ if (Test-Path $wtSettingsPath) {
 Write-Info ""
 Write-Info "Verifying installations..."
 
-if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
-    $version = oh-my-posh --version
-    Write-Info "✓ Oh My Posh: $version"
+if (Get-Command starship -ErrorAction SilentlyContinue) {
+    $version = starship --version | Select-Object -First 1
+    Write-Info "✓ Starship: $version"
 } else {
-    Write-Err "✗ Oh My Posh installation failed"
+    Write-Err "✗ Starship installation failed"
 }
 
 if (Get-Module -ListAvailable -Name Terminal-Icons) {
@@ -435,10 +383,10 @@ if (Test-Path $PROFILE) {
     Write-Err "✗ PowerShell profile creation failed"
 }
 
-if (Test-Path $themeConfigPath) {
-    Write-Info "✓ Oh My Posh theme configured"
+if (Test-Path $starshipConfigPath) {
+    Write-Info "✓ Starship config in place"
 } else {
-    Write-Err "✗ Oh My Posh theme creation failed"
+    Write-Err "✗ Starship config creation failed"
 }
 #endregion
 
@@ -457,7 +405,7 @@ Write-Info "3. If you see a font warning, Windows Terminal needs to be fully res
 Write-Info "   (Close ALL Windows Terminal windows and open a fresh one)"
 Write-Info ""
 Write-Info "Installed components:"
-Write-Info "  - Oh My Posh (prompt theme engine)"
+Write-Info "  - Starship (cross-shell prompt)"
 Write-Info "  - FiraCode Nerd Font (for icons and glyphs)"
 Write-Info "  - Terminal-Icons (colorful file/folder icons)"
 Write-Info "  - PSReadLine (enhanced command-line editing with 100k history)"
@@ -482,7 +430,7 @@ Write-Info "  gch    - git checkout"
 Write-Info "  gdiffdump - dump diff to file"
 Write-Info ""
 Write-Info "PowerShell profile: $PROFILE"
-Write-Info "Oh My Posh theme: $themeConfigPath"
+Write-Info "Starship config: $starshipConfigPath"
 Write-Info ""
 Write-Info "Happy coding!"
 #endregion
