@@ -30,13 +30,14 @@ All Linux distribution scripts follow this standardized flow:
    - Force HTTPS for GitHub (SSH key not yet available)
    - Prompt for username/email with existing config detection
 6. **SSH Key Generation**: Create Ed25519 key for GitHub with smart email detection
-7. **CLI Tools**: Install zsh, fzf, ripgrep, bat
+7. **CLI Tools**: Install zsh, fzf, ripgrep, bat, fd
 8. **Programming Languages**: Install Go and Rust (methods vary by distro)
 9. **Starship + Plugins Setup**: Install Starship via package manager (or upstream installer on Ubuntu), plus `zsh-autosuggestions` and `zsh-syntax-highlighting` from the OS package manager, and write `~/.config/starship.toml`
 10. **Zsh Configuration**: Write complete .zshrc with plugins, aliases, and environment
 11. **Default Shell**: Change to zsh
-12. **Verification**: Check all installations succeeded
-13. **Summary Display**: Show SSH key, git config, next steps
+12. **Neovim Setup**: Install Neovim and write `~/.config/nvim/` with nvim-tree + Telescope, managed by lazy.nvim
+13. **Verification**: Check all installations succeeded
+14. **Summary Display**: Show SSH key, git config, next steps
 
 ### Linux Distribution-Specific Differences
 
@@ -45,6 +46,7 @@ All Linux distribution scripts follow this standardized flow:
 - Go installation: Via `dnf install golang`
 - Rust installation: Via `dnf install rust cargo`
 - Bat command: Works as `bat` directly
+- Fd command: Installed via `fd-find`, works as `fd` directly
 
 **Ubuntu ([ubuntu.sh](ubuntu.sh))**:
 - Package manager: `apt`
@@ -55,6 +57,18 @@ All Linux distribution scripts follow this standardized flow:
   - Non-interactive installation with `-y` flag
   - Sources `~/.cargo/env` for current session
 - Bat command: Installed as `batcat`, creates symlink to `bat` in `~/.local/bin`
+- Fd command: Installed via `fd-find` as `fdfind`, creates symlink to `fd` in `~/.local/bin`
+
+### Neovim Setup (all Unix scripts)
+
+The Neovim **config** is shared and platform-independent: [config/nvim/init.lua](config/nvim/init.lua) (lazy.nvim bootstrap + plugin specs for `nvim-tree/nvim-tree.lua` and `nvim-telescope/telescope.nvim` fuzzy finder) and [config/nvim/lazy-lock.json](config/nvim/lazy-lock.json) (commit-pinned lockfile, committed to the repo). Both are deployed to `~/.config/nvim/` via `fetch_config`. Installs run `nvim --headless "+Lazy! restore" +qa` to honor the lockfile (falling back to `+Lazy! sync` if no lockfile is present). Existing `~/.config/nvim/init.lua` is preserved (warn + skip).
+
+Only the Neovim **install command** differs per platform:
+- **macOS**: `brew install neovim`
+- **Fedora**: `sudo dnf install -y neovim` (ships a current Neovim)
+- **Ubuntu**: apt's Neovim is too old on LTS releases for lazy.nvim/nvim-tree, so it downloads the official `stable` release tarball (`nvim-linux-<arch>.tar.gz`, arch auto-detected like the Go step), extracts to `/opt`, and symlinks `/usr/local/bin/nvim`
+
+**Security note**: plugins are unsandboxed Lua. The setup only uses official repos (`nvim-tree/nvim-tree.lua` + `nvim-tree/nvim-web-devicons`, `nvim-telescope/telescope.nvim` + `nvim-lua/plenary.nvim`) and pins commits via the committed `lazy-lock.json`. Upgrades are explicit (`:Lazy update`), never automatic.
 
 ### Windows PowerShell Script Structure
 
@@ -137,7 +151,16 @@ Scripts check for existing configurations and prompt before overwriting:
 - Git username/email
 - SSH keys
 
-For `~/.config/starship.toml` (all platforms), scripts skip writing if the file already exists and log a warning. No prompt — the existing config is preserved as-is. Otherwise the file is downloaded from [config/starship.toml](config/starship.toml) (same pattern as `config/tmux.conf`).
+For `~/.config/starship.toml` (all platforms), scripts skip writing if the file already exists and log a warning. No prompt — the existing config is preserved as-is. Otherwise the file is sourced via the `fetch_config` helper (see below; same pattern as `config/tmux.conf` and `config/nvim/`).
+
+### Config File Sourcing (local vs remote)
+
+Each Unix script (`macos.sh`, `fedora.sh`, `ubuntu.sh`) defines a `fetch_config <relative-path> <dest>` helper near the top, plus a source-detection block. The same script works whether run from a local checkout or piped from `curl`:
+
+- **Local** (`./macos.sh` from a checkout): `SCRIPT_DIR` resolves to the repo and `config/starship.toml` exists there, so `LOCAL_CONFIG_DIR` is set and files are **copied** from `./config/`.
+- **Remote** (`sh -c "$(curl … macos.sh)"`): `$0` is `sh`, so the local-config check fails and `fetch_config` **downloads** from `$RAW_BASE_URL/config/<path>`.
+
+When adding a new shipped config file, place it under `config/` and fetch it with `fetch_config "<subpath>" "<dest>"` rather than a hardcoded `curl`. The model is **copy + manual sync**: there are no symlinks, so after editing a config on a machine (e.g. running `:Lazy update`, which rewrites `~/.config/nvim/lazy-lock.json`) you must copy the changed file back into the repo to commit it.
 
 Pattern used throughout:
 ```bash

@@ -33,6 +33,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/he
 - Programming languages (Go via Homebrew, Rust via rustup, Python via uv)
 - Modern shell (zsh with Starship prompt, zsh-autosuggestions, zsh-syntax-highlighting - zsh is default on macOS)
 - CLI tools (fzf, ripgrep, bat, fd, tmux)
+- Neovim with nvim-tree file explorer + Telescope fuzzy finder (managed by lazy.nvim)
 - Git configuration and SSH key generation (with Keychain integration)
 
 ## Linux Distributions
@@ -49,7 +50,8 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/he
 - Development tools (gcc, make, build essentials)
 - Programming languages (Go, Rust)
 - Modern shell (zsh with Starship prompt, zsh-autosuggestions, zsh-syntax-highlighting)
-- CLI tools (fzf, ripgrep, bat, tmux)
+- CLI tools (fzf, ripgrep, bat, fd, tmux)
+- Neovim with nvim-tree file explorer + Telescope fuzzy finder (managed by lazy.nvim)
 - Git configuration and SSH key generation
 
 ### Ubuntu Setup
@@ -64,7 +66,8 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/he
 - Development tools (build-essential, gcc, g++)
 - Programming languages (Go from official binaries, Rust via rustup)
 - Modern shell (zsh with Starship prompt, zsh-autosuggestions, zsh-syntax-highlighting)
-- CLI tools (fzf, ripgrep, bat, tmux)
+- CLI tools (fzf, ripgrep, bat, fd, tmux)
+- Neovim with nvim-tree file explorer + Telescope fuzzy finder (managed by lazy.nvim)
 - Git configuration and SSH key generation
 
 ## Windows PowerShell
@@ -124,13 +127,15 @@ irm https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows
 - **Shell**: zsh with Starship prompt, zsh-autosuggestions, and zsh-syntax-highlighting
 - **Git**: Global configuration with username, email, and SSH keys (Keychain integration)
 - **CLI Tools**: Modern alternatives (bat, ripgrep, fd, fzf, tmux)
+- **Neovim**: nvim-tree file explorer + Telescope fuzzy finder, managed by lazy.nvim (`~/.config/nvim/`)
 
 ### Linux (Fedora & Ubuntu)
 - **Development Tools**: Complete toolchain for C/C++, Go, and Rust
 - **Shell**: zsh with Starship prompt, zsh-autosuggestions, and zsh-syntax-highlighting
 - **Git**: Global configuration with username, email, and SSH keys
-- **CLI Tools**: Modern alternatives (bat for cat, ripgrep for grep, fzf for fuzzy finding)
+- **CLI Tools**: Modern alternatives (bat for cat, ripgrep for grep, fd for find, fzf for fuzzy finding)
 - **Terminal Multiplexer**: tmux with custom configuration
+- **Neovim**: nvim-tree file explorer + Telescope fuzzy finder, managed by lazy.nvim (`~/.config/nvim/`)
 
 ### Windows (PowerShell)
 - **Prompt**: Starship with custom config (`~/.config/starship.toml`)

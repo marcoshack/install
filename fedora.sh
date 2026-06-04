@@ -65,6 +65,29 @@ fi
 log_info "✓ Detected Fedora - continuing with setup..."
 log_info "Starting Fedora workstation setup..."
 
+# Config sourcing: copy from a local checkout when running from one, otherwise
+# download from GitHub. Lets the same script work both ways:
+#   bash -c "$(curl -fsSL .../fedora.sh)"  -> remote (no local config/ dir)
+#   ./fedora.sh                            -> local (copies from ./config)
+RAW_BASE_URL="https://raw.githubusercontent.com/marcoshack/install/refs/heads/main"
+SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd 2>/dev/null || true)"
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/config/starship.toml" ]; then
+    LOCAL_CONFIG_DIR="$SCRIPT_DIR/config"
+    log_info "Running from a local checkout; config files will be copied from $LOCAL_CONFIG_DIR"
+else
+    LOCAL_CONFIG_DIR=""
+    log_info "Running remotely; config files will be downloaded from GitHub"
+fi
+
+# fetch_config <relative-path-under-config/> <destination>
+fetch_config() {
+    if [ -n "$LOCAL_CONFIG_DIR" ] && [ -f "$LOCAL_CONFIG_DIR/$1" ]; then
+        cp "$LOCAL_CONFIG_DIR/$1" "$2"
+    else
+        curl -fsSL "$RAW_BASE_URL/config/$1" -o "$2"
+    fi
+}
+
 # Configuration file path
 CONFIG_FILE="$HOME/.install.conf"
 
@@ -83,6 +106,7 @@ log_info "  9. Tmux Configuration"
 log_info " 10. Starship and Zsh Plugins Installation"
 log_info " 11. Zsh Configuration"
 log_info " 12. Default Shell Change"
+log_info " 13. Neovim Configuration (nvim-tree)"
 log_info ""
 
 # Initialize skip flags
@@ -286,14 +310,15 @@ fi
 
 # Step 5: Install zsh and related tools
 if should_skip_step 5; then
-    log_warn "Skipping Step 5: CLI Tools Installation (zsh, fzf, ripgrep, bat, tmux)"
+    log_warn "Skipping Step 5: CLI Tools Installation (zsh, fzf, ripgrep, bat, fd, tmux)"
 else
-    log_info "Step 5: Installing zsh, fzf, ripgrep, and bat..."
+    log_info "Step 5: Installing zsh, fzf, ripgrep, bat, and fd..."
     sudo dnf install -y \
         zsh \
         fzf \
         ripgrep \
         bat \
+        fd-find \
         util-linux-user
 fi
 
@@ -383,8 +408,8 @@ else
     fi
 
     if [ "$INSTALL_TMUX_CONF" = true ]; then
-        log_info "Downloading tmux configuration..."
-        curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/config/tmux.conf -o "$TMUX_CONF_PATH"
+        log_info "Installing tmux configuration..."
+        fetch_config "tmux.conf" "$TMUX_CONF_PATH"
         log_info "✓ tmux configuration installed successfully"
     else
         log_info "Skipping tmux configuration"
@@ -420,8 +445,8 @@ else
     if [ -f "$STARSHIP_CONFIG_PATH" ]; then
         log_warn "Starship config already exists at $STARSHIP_CONFIG_PATH - keeping existing config"
     else
-        log_info "Downloading Starship configuration..."
-        curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/config/starship.toml -o "$STARSHIP_CONFIG_PATH"
+        log_info "Installing Starship configuration..."
+        fetch_config "starship.toml" "$STARSHIP_CONFIG_PATH"
         log_info "✓ Starship config written to $STARSHIP_CONFIG_PATH"
     fi
 fi
@@ -490,6 +515,41 @@ else
     fi
 fi
 
+# Step 13: Configure Neovim with nvim-tree
+if should_skip_step 13; then
+    log_warn "Skipping Step 13: Neovim Configuration"
+else
+    log_info "Step 13: Setting up Neovim with nvim-tree..."
+
+    if ! command -v nvim >/dev/null 2>&1; then
+        log_info "Installing Neovim via dnf..."
+        sudo dnf install -y neovim
+    else
+        log_info "Neovim is already installed"
+    fi
+
+    NVIM_CONFIG_DIR="$HOME/.config/nvim"
+    mkdir -p "$NVIM_CONFIG_DIR"
+
+    if [ -f "$NVIM_CONFIG_DIR/init.lua" ]; then
+        log_warn "Neovim config already exists at $NVIM_CONFIG_DIR/init.lua - keeping existing config"
+    else
+        log_info "Installing Neovim configuration..."
+        fetch_config "nvim/init.lua" "$NVIM_CONFIG_DIR/init.lua"
+        # Lockfile pins plugins to reviewed commits; best-effort (tolerate a 404 before first publish)
+        fetch_config "nvim/lazy-lock.json" "$NVIM_CONFIG_DIR/lazy-lock.json" 2>/dev/null || \
+            log_warn "Could not fetch lazy-lock.json; plugins will resolve to their latest stable tags"
+
+        log_info "Installing Neovim plugins via lazy.nvim (this may take a moment)..."
+        if [ -f "$NVIM_CONFIG_DIR/lazy-lock.json" ]; then
+            nvim --headless "+Lazy! restore" +qa
+        else
+            nvim --headless "+Lazy! sync" +qa
+        fi
+        log_info "✓ Neovim configured with nvim-tree (toggle the file explorer with <leader>e)"
+    fi
+fi
+
 # Verify installations
 log_info "Verifying installations..."
 
@@ -502,8 +562,10 @@ command -v zsh >/dev/null 2>&1 && log_info "✓ Zsh: $(zsh --version)" || log_er
 command -v fzf >/dev/null 2>&1 && log_info "✓ fzf installed" || log_error "✗ fzf installation failed"
 command -v rg >/dev/null 2>&1 && log_info "✓ ripgrep installed" || log_error "✗ ripgrep installation failed"
 command -v bat >/dev/null 2>&1 && log_info "✓ bat installed" || log_error "✗ bat installation failed"
+command -v fd >/dev/null 2>&1 && log_info "✓ fd installed" || log_error "✗ fd installation failed"
 command -v tmux >/dev/null 2>&1 && log_info "✓ tmux installed" || log_error "✗ tmux installation failed"
 command -v starship >/dev/null 2>&1 && log_info "✓ Starship: $(starship --version | head -1)" || log_error "✗ Starship installation failed"
+command -v nvim >/dev/null 2>&1 && log_info "✓ Neovim: $(nvim --version | head -1 | awk '{print $2}')" || log_error "✗ Neovim installation failed"
 
 log_info ""
 log_info "=========================================="
@@ -544,7 +606,9 @@ log_info "  - Zsh with Starship prompt and plugins (autosuggestions, syntax high
 log_info "  - fzf (fuzzy finder)"
 log_info "  - ripgrep (fast grep alternative)"
 log_info "  - bat (cat with syntax highlighting)"
+log_info "  - fd (fast find alternative)"
 log_info "  - tmux (terminal multiplexer)"
+log_info "  - Neovim with nvim-tree (managed by lazy.nvim, toggle with <leader>e)"
 log_info ""
 log_info "Git configuration:"
 FINAL_GIT_NAME=$(git config --global user.name 2>/dev/null || echo "Not configured")
