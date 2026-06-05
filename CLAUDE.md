@@ -61,14 +61,14 @@ All Linux distribution scripts follow this standardized flow:
 
 ### Neovim Setup (all Unix scripts)
 
-The Neovim **config** is shared and platform-independent: [config/nvim/init.lua](config/nvim/init.lua) (lazy.nvim bootstrap + plugin specs for `nvim-tree/nvim-tree.lua` and `nvim-telescope/telescope.nvim` fuzzy finder) and [config/nvim/lazy-lock.json](config/nvim/lazy-lock.json) (commit-pinned lockfile, committed to the repo). Both are deployed to `~/.config/nvim/` via `fetch_config`. Installs run `nvim --headless "+Lazy! restore" +qa` to honor the lockfile (falling back to `+Lazy! sync` if no lockfile is present). Existing `~/.config/nvim/init.lua` is preserved (warn + skip).
+The Neovim **config** is shared and platform-independent: [config/nvim/init.lua](config/nvim/init.lua) (lazy.nvim bootstrap + plugin specs for `nvim-tree/nvim-tree.lua`, `nvim-telescope/telescope.nvim` fuzzy finder, `lewis6991/gitsigns.nvim` in-file git change signs, and `sindrets/diffview.nvim` repo-wide git diff UI) and [config/nvim/lazy-lock.json](config/nvim/lazy-lock.json) (commit-pinned lockfile, committed to the repo). Both are deployed to `~/.config/nvim/` via `fetch_config`. The plugin install step runs `nvim --headless "+Lazy! restore" +qa` to honor the lockfile (falling back to `+Lazy! sync` if no lockfile is present), and it runs on **every** invocation — not just fresh installs — so re-running the script installs any plugins the deployed config declares but that aren't installed yet. Existing `~/.config/nvim/init.lua` is preserved (warn + skip): the config files are only fetched on a fresh install, so re-runs never overwrite local edits, and newly-added plugins are only picked up once the deployed `init.lua` actually declares them (i.e. on a fresh machine, or after manually syncing the config).
 
 Only the Neovim **install command** differs per platform:
 - **macOS**: `brew install neovim`
 - **Fedora**: `sudo dnf install -y neovim` (ships a current Neovim)
 - **Ubuntu**: apt's Neovim is too old on LTS releases for lazy.nvim/nvim-tree, so it downloads the official `stable` release tarball (`nvim-linux-<arch>.tar.gz`, arch auto-detected like the Go step), extracts to `/opt`, and symlinks `/usr/local/bin/nvim`
 
-**Security note**: plugins are unsandboxed Lua. The setup only uses official repos (`nvim-tree/nvim-tree.lua` + `nvim-tree/nvim-web-devicons`, `nvim-telescope/telescope.nvim` + `nvim-lua/plenary.nvim`) and pins commits via the committed `lazy-lock.json`. Upgrades are explicit (`:Lazy update`), never automatic.
+**Security note**: plugins are unsandboxed Lua. The setup only uses official repos (`nvim-tree/nvim-tree.lua` + `nvim-tree/nvim-web-devicons`, `nvim-telescope/telescope.nvim` + `nvim-lua/plenary.nvim`, `lewis6991/gitsigns.nvim`, `sindrets/diffview.nvim`) and pins commits via the committed `lazy-lock.json`. Upgrades are explicit (`:Lazy update`), never automatic.
 
 ### Windows PowerShell Script Structure
 

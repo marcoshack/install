@@ -566,15 +566,20 @@ else
         # Lockfile pins plugins to reviewed commits; best-effort (tolerate a 404 before first publish)
         fetch_config "nvim/lazy-lock.json" "$NVIM_CONFIG_DIR/lazy-lock.json" 2>/dev/null || \
             log_warn "Could not fetch lazy-lock.json; plugins will resolve to their latest stable tags"
-
-        log_info "Installing Neovim plugins via lazy.nvim (this may take a moment)..."
-        if [ -f "$NVIM_CONFIG_DIR/lazy-lock.json" ]; then
-            nvim --headless "+Lazy! restore" +qa
-        else
-            nvim --headless "+Lazy! sync" +qa
-        fi
-        log_info "✓ Neovim configured with nvim-tree (toggle the file explorer with <leader>e)"
     fi
+
+    # Install any plugins the config declares but that aren't installed yet. Runs on
+    # every invocation (not just fresh installs) so re-running the script picks up
+    # newly-added plugins. `+Lazy! restore` clones missing plugins and checks out the
+    # lockfile commit; plugins already at the pinned commit are left untouched. The
+    # existing init.lua is never overwritten, so local edits are preserved.
+    log_info "Installing Neovim plugins via lazy.nvim (this may take a moment)..."
+    if [ -f "$NVIM_CONFIG_DIR/lazy-lock.json" ]; then
+        nvim --headless "+Lazy! restore" +qa
+    else
+        nvim --headless "+Lazy! sync" +qa
+    fi
+    log_info "✓ Neovim configured with nvim-tree (toggle the file explorer with <leader>e)"
 fi
 
 # Verify installations
