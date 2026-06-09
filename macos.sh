@@ -486,6 +486,11 @@ if should_skip_step 12; then
 else
     log_info "Step 12: Configuring .zshrc..."
 
+    if [ -f "$HOME/.zshrc" ]; then
+        cp "$HOME/.zshrc" "$HOME/.zshrc.$(date +%Y%m%d)"
+        log_info "Backed up existing .zshrc to ~/.zshrc.$(date +%Y%m%d)"
+    fi
+
     # Determine Homebrew prefix
     if [ -f "/opt/homebrew/bin/brew" ]; then
         BREW_PREFIX="/opt/homebrew"

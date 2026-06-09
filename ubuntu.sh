@@ -541,6 +541,12 @@ if should_skip_step 11; then
     log_warn "Skipping Step 11: Zsh Configuration"
 else
     log_info "Step 11: Configuring .zshrc..."
+
+    if [ -f "$HOME/.zshrc" ]; then
+        cp "$HOME/.zshrc" "$HOME/.zshrc.$(date +%Y%m%d)"
+        log_info "Backed up existing .zshrc to ~/.zshrc.$(date +%Y%m%d)"
+    fi
+
     cat > "$HOME/.zshrc" << 'EOF'
 # History
 HISTSIZE=50000
