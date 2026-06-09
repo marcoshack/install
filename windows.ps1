@@ -177,6 +177,22 @@ try {
 }
 #endregion
 
+#region Install glow via winget
+Write-Info "Installing glow..."
+try {
+    if (-not (Get-Command glow -ErrorAction SilentlyContinue)) {
+        winget install charmbracelet.glow --silent --accept-source-agreements --accept-package-agreements
+        Write-Info "✓ glow installed"
+        # Refresh PATH
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    } else {
+        Write-Info "glow is already installed"
+    }
+} catch {
+    Write-Warn "glow installation failed, but continuing..."
+}
+#endregion
+
 #region Install Python 3.14 and uv via winget
 Write-Info "Installing Python 3.14..."
 try {
@@ -363,6 +379,12 @@ if (Get-Command fzf -ErrorAction SilentlyContinue) {
     Write-Warn "✗ fzf not found"
 }
 
+if (Get-Command glow -ErrorAction SilentlyContinue) {
+    Write-Info "✓ glow installed"
+} else {
+    Write-Warn "✗ glow not found"
+}
+
 if (Get-Command python3.14 -ErrorAction SilentlyContinue) {
     $version = python3.14 --version
     Write-Info "✓ Python: $version"
@@ -411,6 +433,7 @@ Write-Info "  - Terminal-Icons (colorful file/folder icons)"
 Write-Info "  - PSReadLine (enhanced command-line editing with 100k history)"
 Write-Info "  - PSFzf (fuzzy finder integration with Ctrl+T and Ctrl+R)"
 Write-Info "  - fzf (command-line fuzzy finder)"
+Write-Info "  - glow (markdown reader)"
 Write-Info "  - Python 3.14"
 Write-Info "  - uv (Python package manager)"
 Write-Info ""

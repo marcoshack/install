@@ -98,7 +98,7 @@ log_info "  1. System Update"
 log_info "  2. Development Tools Installation"
 log_info "  3. Git Configuration"
 log_info "  4. SSH Key Generation"
-log_info "  5. CLI Tools Installation (zsh, fzf, ripgrep, bat, tmux)"
+log_info "  5. CLI Tools Installation (zsh, fzf, ripgrep, bat, glow, tmux)"
 log_info "  6. Go Installation"
 log_info "  7. Rust Installation"
 log_info "  8. Python Installation"
@@ -310,15 +310,16 @@ fi
 
 # Step 5: Install zsh and related tools
 if should_skip_step 5; then
-    log_warn "Skipping Step 5: CLI Tools Installation (zsh, fzf, ripgrep, bat, fd, tmux)"
+    log_warn "Skipping Step 5: CLI Tools Installation (zsh, fzf, ripgrep, bat, fd, glow, tmux)"
 else
-    log_info "Step 5: Installing zsh, fzf, ripgrep, bat, and fd..."
+    log_info "Step 5: Installing zsh, fzf, ripgrep, bat, fd, and glow..."
     sudo dnf install -y \
         zsh \
         fzf \
         ripgrep \
         bat \
         fd-find \
+        glow \
         util-linux-user
 fi
 
@@ -568,6 +569,7 @@ command -v fzf >/dev/null 2>&1 && log_info "✓ fzf installed" || log_error "✗
 command -v rg >/dev/null 2>&1 && log_info "✓ ripgrep installed" || log_error "✗ ripgrep installation failed"
 command -v bat >/dev/null 2>&1 && log_info "✓ bat installed" || log_error "✗ bat installation failed"
 command -v fd >/dev/null 2>&1 && log_info "✓ fd installed" || log_error "✗ fd installation failed"
+command -v glow >/dev/null 2>&1 && log_info "✓ glow installed" || log_error "✗ glow installation failed"
 command -v tmux >/dev/null 2>&1 && log_info "✓ tmux installed" || log_error "✗ tmux installation failed"
 command -v starship >/dev/null 2>&1 && log_info "✓ Starship: $(starship --version | head -1)" || log_error "✗ Starship installation failed"
 command -v nvim >/dev/null 2>&1 && log_info "✓ Neovim: $(nvim --version | head -1 | awk '{print $2}')" || log_error "✗ Neovim installation failed"
@@ -612,6 +614,7 @@ log_info "  - fzf (fuzzy finder)"
 log_info "  - ripgrep (fast grep alternative)"
 log_info "  - bat (cat with syntax highlighting)"
 log_info "  - fd (fast find alternative)"
+log_info "  - glow (markdown reader)"
 log_info "  - tmux (terminal multiplexer)"
 log_info "  - Neovim with nvim-tree (managed by lazy.nvim, toggle with <leader>e)"
 log_info ""
