@@ -11,7 +11,7 @@ This repository contains automated setup scripts for Linux distributions and Win
 **Windows PowerShell**: Beautiful shell customization with Starship, fuzzy finder, enhanced history, and Git aliases. Focuses on shell experience rather than development tools (which are typically done in WSL).
 
 **Critical Design Constraint**: All functionality must be self-contained within a single file per platform:
-- Linux: `.sh` files executed via `sh -c "$(curl -fsSL <url>)"`
+- Linux: `.sh` files executed via `bash -c "$(curl -fsSL <url>)"`
 - Windows: `.ps1` file executed via `irm <url> | iex`
 
 Each script must be completely standalone.
@@ -153,12 +153,18 @@ Scripts check for existing configurations and prompt before overwriting:
 
 For `~/.config/starship.toml` (all platforms), scripts skip writing if the file already exists and log a warning. No prompt — the existing config is preserved as-is. Otherwise the file is sourced via the `fetch_config` helper (see below; same pattern as `config/tmux.conf` and `config/nvim/`).
 
+### Bash Re-exec Guard
+
+The Unix scripts are bash, not POSIX sh: they use `[[ ]]`, `<<<` here-strings, `read -ra`, arrays and `local`. When a user runs `sh -c "$(curl …)"` the shebang is ignored, and on Ubuntu `/bin/sh` is dash, which fails on all of those. So each script starts (right after `set -e`) with a guard: if `$BASH_VERSION` is empty it re-execs under bash — `exec bash "$0"` when `$0` is an existing `*.sh` file (local checkout), otherwise by re-fetching its own `SELF_URL` and running `exec bash -c "$SELF_SRC"`. The root check uses `$(id -u)` rather than `$EUID` since dash has no `$EUID`.
+
+Keep the guard first: any bashism above it runs under the wrong shell. `SELF_URL` is hardcoded per script (it is needed before `RAW_BASE_URL` is defined), so update it if the repo path ever changes.
+
 ### Config File Sourcing (local vs remote)
 
 Each Unix script (`macos.sh`, `fedora.sh`, `ubuntu.sh`) defines a `fetch_config <relative-path> <dest>` helper near the top, plus a source-detection block. The same script works whether run from a local checkout or piped from `curl`:
 
 - **Local** (`./macos.sh` from a checkout): `SCRIPT_DIR` resolves to the repo and `config/starship.toml` exists there, so `LOCAL_CONFIG_DIR` is set and files are **copied** from `./config/`.
-- **Remote** (`sh -c "$(curl … macos.sh)"`): `$0` is `sh`, so the local-config check fails and `fetch_config` **downloads** from `$RAW_BASE_URL/config/<path>`.
+- **Remote** (`bash -c "$(curl … macos.sh)"`): `$0` is `bash` (there is no script file), so the local-config check fails and `fetch_config` **downloads** from `$RAW_BASE_URL/config/<path>`.
 
 When adding a new shipped config file, place it under `config/` and fetch it with `fetch_config "<subpath>" "<dest>"` rather than a hardcoded `curl`. The model is **copy + manual sync**: there are no symlinks, so after editing a config on a machine (e.g. running `:Lazy update`, which rewrites `~/.config/nvim/lazy-lock.json`) you must copy the changed file back into the repo to commit it.
 

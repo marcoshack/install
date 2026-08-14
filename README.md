@@ -42,7 +42,7 @@ All scripts are idempotent (safe to re-run).
 Run this command to set up a fresh macOS installation:
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/macos.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/macos.sh)"
 ```
 
 **Platform specific:**
@@ -68,7 +68,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/he
 Run this command to set up a fresh Fedora installation:
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh)"
 ```
 
 **Platform specific:**
@@ -89,7 +89,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/he
 Run this command to set up a fresh Ubuntu installation:
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)"
 ```
 
 **Platform specific:**

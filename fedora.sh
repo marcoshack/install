@@ -8,6 +8,30 @@
 
 set -e
 
+# This script is bash, but `sh -c "$(curl ...)"` ignores the shebang above. If
+# /bin/sh is not bash, re-exec under bash: from the local file when running from
+# a checkout, otherwise by re-fetching this script.
+if [ -z "$BASH_VERSION" ]; then
+    if ! command -v bash >/dev/null 2>&1; then
+        echo "[ERROR] bash is required to run this script (sudo dnf install -y bash)" >&2
+        exit 1
+    fi
+    case "${0##*/}" in
+        *.sh)
+            if [ -f "$0" ]; then
+                exec bash "$0" "$@"
+            fi
+            ;;
+    esac
+    SELF_URL="https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh"
+    SELF_SRC=$(curl -fsSL "$SELF_URL") || SELF_SRC=""
+    if [ -z "$SELF_SRC" ]; then
+        echo "[ERROR] Could not re-download this script from $SELF_URL" >&2
+        exit 1
+    fi
+    exec bash -c "$SELF_SRC"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -28,7 +52,7 @@ log_error() {
 }
 
 # Check if running as root
-if [ "$EUID" -eq 0 ]; then
+if [ "$(id -u)" -eq 0 ]; then
     log_error "Please do not run this script as root. It will prompt for sudo when needed."
     exit 1
 fi
@@ -50,7 +74,7 @@ if [ "$DISTRO_ID" != "fedora" ]; then
     case "$DISTRO_ID" in
         ubuntu)
             log_info "For Ubuntu, use this script instead:"
-            log_info "sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)\""
+            log_info "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)\""
             ;;
         *)
             log_warn "No installation script is currently available for $DISTRO_ID"
