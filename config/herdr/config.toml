@@ -1,0 +1,24 @@
+onboarding = false
+
+[ui.toast]
+delivery = "system"
+
+[keys]
+previous_tab = "alt+left"
+next_tab = "alt+right"
+previous_agent = "alt+up"
+next_agent = "alt+down"
+focus_pane_left = "ctrl+alt+left"
+focus_pane_down = "ctrl+alt+down"
+focus_pane_up = "ctrl+alt+up"
+focus_pane_right = "ctrl+alt+right"
+previous_workspace = "alt+shift+up"
+next_workspace = "alt+shift+down"
+
+[theme]
+name = "catppuccin"
+auto_switch = false
+
+[theme.custom]
+overlay0 = "#a6adc8"
+overlay1 = "#bac2de"
