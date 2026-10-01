@@ -36,8 +36,9 @@ All Linux distribution scripts follow this standardized flow:
 10. **Zsh Configuration**: Write complete .zshrc with plugins, aliases, and environment
 11. **Default Shell**: Change to zsh
 12. **Neovim Setup**: Install Neovim and write `~/.config/nvim/` with nvim-tree + Telescope, managed by lazy.nvim
-13. **Verification**: Check all installations succeeded
-14. **Summary Display**: Show SSH key, git config, next steps
+13. **Herdr Setup**: Install herdr (see below) and write `~/.config/herdr/config.toml`
+14. **Verification**: Check all installations succeeded
+15. **Summary Display**: Show SSH key, git config, next steps
 
 ### Linux Distribution-Specific Differences
 
@@ -69,6 +70,14 @@ Only the Neovim **install command** differs per platform:
 - **Ubuntu**: apt's Neovim is too old on LTS releases for lazy.nvim/nvim-tree, so it downloads the official `stable` release tarball (`nvim-linux-<arch>.tar.gz`, arch auto-detected like the Go step), extracts to `/opt`, and symlinks `/usr/local/bin/nvim`
 
 **Security note**: plugins are unsandboxed Lua. The setup only uses official repos (`nvim-tree/nvim-tree.lua` + `nvim-tree/nvim-web-devicons`, `nvim-telescope/telescope.nvim` + `nvim-lua/plenary.nvim`, `lewis6991/gitsigns.nvim`, `sindrets/diffview.nvim`) and pins commits via the committed `lazy-lock.json`. Upgrades are explicit (`:Lazy update`), never automatic.
+
+### herdr Setup (all platforms)
+
+[herdr](https://herdr.dev) (agent multiplexer) is the last numbered step in each Unix script, so step numbers saved in `~/.install.conf` stay valid. The config [config/herdr/config.toml](config/herdr/config.toml) has no platform-specific settings, so the same file is used everywhere. As with `starship.toml`, an existing config is kept with a warning and never overwritten. The install is skipped if `herdr` is already on PATH; herdr updates itself with `herdr update`.
+
+- **macOS**: `brew install herdr`; config at `~/.config/herdr/config.toml` via `fetch_config`
+- **Fedora/Ubuntu**: the official installer (`https://herdr.dev/install.sh`, which installs to `~/.local/bin` and verifies the SHA-256). It is downloaded into a variable before running it, so a failed download is not piped into `sh` as an empty script. A failed install logs a warning and the script continues. Config at `~/.config/herdr/config.toml` via `fetch_config`
+- **Windows**: the official `install.ps1` (stable channel; winget only has `Herdr.Herdr.Preview`), run in a child `powershell` process so the installer's `Set-StrictMode`/`exit` cannot affect the setup script. Config downloaded to `%APPDATA%\herdr\config.toml`
 
 ### Windows PowerShell Script Structure
 

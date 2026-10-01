@@ -223,6 +223,43 @@ try {
 }
 #endregion
 
+#region Install herdr and its config
+Write-Info "Installing herdr..."
+try {
+    if (-not (Get-Command herdr -ErrorAction SilentlyContinue)) {
+        # Official installer (stable channel): verifies the download's SHA-256 and adds
+        # herdr to the user PATH. winget only carries the Preview channel. Runs in a child
+        # process so the installer's strict mode and exit calls can't affect this script.
+        powershell -ExecutionPolicy ByPass -c "irm https://herdr.dev/install.ps1 | iex"
+        if ($LASTEXITCODE -ne 0) { throw "herdr installer exited with code $LASTEXITCODE" }
+        Write-Info "✓ herdr installed"
+        # Refresh PATH
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    } else {
+        Write-Info "herdr is already installed (update it with: herdr update)"
+    }
+} catch {
+    Write-Warn "herdr installation failed, but continuing..."
+}
+
+$herdrConfigDir = Join-Path $env:APPDATA "herdr"
+$herdrConfigPath = Join-Path $herdrConfigDir "config.toml"
+if (Test-Path $herdrConfigPath) {
+    Write-Warn "herdr config already exists at $herdrConfigPath - keeping existing config"
+} else {
+    try {
+        if (-not (Test-Path $herdrConfigDir)) {
+            New-Item -ItemType Directory -Path $herdrConfigDir -Force | Out-Null
+        }
+        Write-Info "Downloading herdr configuration..."
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/config/herdr/config.toml" -OutFile $herdrConfigPath -UseBasicParsing
+        Write-Info "✓ herdr config created at: $herdrConfigPath"
+    } catch {
+        Write-Warn "herdr config download failed, but continuing..."
+    }
+}
+#endregion
+
 #region Create PowerShell Profile
 Write-Info "Setting up PowerShell profile..."
 
@@ -399,6 +436,19 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
     Write-Warn "✗ uv not found"
 }
 
+if (Get-Command herdr -ErrorAction SilentlyContinue) {
+    $version = herdr --version
+    Write-Info "✓ herdr: $version"
+} else {
+    Write-Warn "✗ herdr not found"
+}
+
+if (Test-Path $herdrConfigPath) {
+    Write-Info "✓ herdr config in place"
+} else {
+    Write-Warn "✗ herdr config not found"
+}
+
 if (Test-Path $PROFILE) {
     Write-Info "✓ PowerShell profile configured"
 } else {
@@ -436,6 +486,7 @@ Write-Info "  - fzf (command-line fuzzy finder)"
 Write-Info "  - glow (markdown reader)"
 Write-Info "  - Python 3.14"
 Write-Info "  - uv (Python package manager)"
+Write-Info "  - herdr (agent multiplexer)"
 Write-Info ""
 Write-Info "PSFzf Key Bindings:"
 Write-Info "  Ctrl+T - Fuzzy find files/folders in current directory"
@@ -454,6 +505,7 @@ Write-Info "  gdiffdump - dump diff to file"
 Write-Info ""
 Write-Info "PowerShell profile: $PROFILE"
 Write-Info "Starship config: $starshipConfigPath"
+Write-Info "herdr config: $herdrConfigPath"
 Write-Info ""
 Write-Info "Happy coding!"
 #endregion

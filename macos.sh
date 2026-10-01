@@ -112,6 +112,7 @@ log_info " 10. Tmux Configuration"
 log_info " 11. Starship and Zsh Plugins Installation"
 log_info " 12. Zsh Configuration"
 log_info " 13. Neovim Configuration (nvim-tree)"
+log_info " 14. Herdr Installation and Configuration"
 log_info ""
 
 # Initialize skip flags
@@ -612,6 +613,32 @@ else
     log_info "✓ Neovim configured with nvim-tree (toggle the file explorer with <leader>e)"
 fi
 
+# Step 14: Install herdr (agent multiplexer) and its config
+if should_skip_step 14; then
+    log_warn "Skipping Step 14: Herdr Installation and Configuration"
+else
+    log_info "Step 14: Setting up herdr..."
+
+    if command -v herdr >/dev/null 2>&1; then
+        log_info "herdr is already installed"
+    else
+        log_info "Installing herdr via Homebrew..."
+        brew install herdr
+    fi
+
+    HERDR_CONF_DIR="$HOME/.config/herdr"
+    HERDR_CONF_PATH="$HERDR_CONF_DIR/config.toml"
+    mkdir -p "$HERDR_CONF_DIR"
+
+    if [ -f "$HERDR_CONF_PATH" ]; then
+        log_warn "herdr config already exists at $HERDR_CONF_PATH - keeping existing config"
+    else
+        log_info "Installing herdr configuration..."
+        fetch_config "herdr/config.toml" "$HERDR_CONF_PATH"
+        log_info "✓ herdr config written to $HERDR_CONF_PATH"
+    fi
+fi
+
 # Verify installations
 log_info "Verifying installations..."
 
@@ -630,6 +657,7 @@ command -v glow >/dev/null 2>&1 && log_info "✓ glow installed" || log_error "�
 command -v tmux >/dev/null 2>&1 && log_info "✓ tmux installed" || log_error "✗ tmux installation failed"
 command -v starship >/dev/null 2>&1 && log_info "✓ Starship: $(starship --version | head -1)" || log_error "✗ Starship installation failed"
 command -v nvim >/dev/null 2>&1 && log_info "✓ Neovim: $(nvim --version | head -1 | awk '{print $2}')" || log_error "✗ Neovim installation failed"
+command -v herdr >/dev/null 2>&1 && log_info "✓ herdr: $(herdr --version | awk '{print $2}')" || log_error "✗ herdr installation failed"
 
 log_info ""
 log_info "=========================================="
@@ -673,6 +701,7 @@ log_info "  - fd (fast find alternative)"
 log_info "  - glow (markdown reader)"
 log_info "  - tmux (terminal multiplexer)"
 log_info "  - Neovim with nvim-tree (managed by lazy.nvim, toggle with <leader>e)"
+log_info "  - herdr (agent multiplexer)"
 log_info ""
 log_info "Git configuration:"
 FINAL_GIT_NAME=$(git config --global user.name 2>/dev/null || echo "Not configured")

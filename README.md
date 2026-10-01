@@ -18,6 +18,7 @@ Automated setup scripts for macOS, Linux distributions, and Windows PowerShell w
 | glow (markdown reader) | ✓ | ✓ | ✓ |
 | tmux | ✓ | ✓ | |
 | Neovim (nvim-tree + Telescope, managed by lazy.nvim) | ✓ | ✓ | |
+| herdr (agent multiplexer) | ✓ | ✓ | ✓ |
 | SSH key generation | ✓ | ✓ | |
 | Development tools (compiler toolchains) | ✓ | ✓ | |
 | Python (via uv) | ✓ | | |
