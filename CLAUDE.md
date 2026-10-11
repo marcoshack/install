@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains automated setup scripts for Linux distributions and Windows PowerShell. The scripts are designed to be executed via one-line commands to set up fresh installations:
 
-**Linux distributions**: Complete development environment with Go, Rust, Git, zsh, and essential CLI tools.
+**Linux distributions** (Fedora, Ubuntu, Omarchy): Complete development environment with Go, Rust, Git, zsh, and essential CLI tools.
 
 **Windows PowerShell**: Beautiful shell customization with Starship, fuzzy finder, enhanced history, and Git aliases. Focuses on shell experience rather than development tools (which are typically done in WSL).
 
@@ -60,6 +60,14 @@ All Linux distribution scripts follow this standardized flow:
 - Bat command: Installed as `batcat`, creates symlink to `bat` in `~/.local/bin`
 - Fd command: Installed via `fd-find` as `fdfind`, creates symlink to `fd` in `~/.local/bin`
 
+**Omarchy ([omarchy.sh](omarchy.sh))**:
+- Detection: `ID=omarchy` in `/etc/os-release` (Omarchy 4+), or `ID=arch` with `omarchy-pkg-add` on PATH (older releases)
+- Package manager: `omarchy-pkg-add` (idempotent `pacman -S --needed` wrapper). System update runs `omarchy-update`, which snapshots and runs migrations, instead of a bare `pacman -Syu`
+- Go, Python, uv: pacman. Rust: `rustup` package + `rustup default stable`
+- **Login shell is NOT changed.** Omarchy's session and tooling assume bash, and upstream (omacom/omarchy discussions #2495, #10723) says to keep bash as the login shell. Step 12 inserts a marked `# >>> zsh handoff ... <<<` block into `~/.bashrc`, right after Omarchy's `[[ $- != *i* ]] && return` guard, so its env-bootstrap line still runs for non-interactive shells. The block execs `zsh` (`--login` for login shells) only when: interactive, not `bash -c`, the parent isn't bash/zsh, and `SHLVL==1` or inside a tmux/herdr pane. It exports `SHELL=zsh` so tmux/herdr/nvim spawn zsh (`config/tmux.conf` relies on `$SHELL`)
+- `.zshrc` sources Omarchy's official `omarchy-zsh` package (`/usr/share/omarchy-zsh/shell/{zoptions,all}`) so Omarchy updates flow in, then layers Omarchy's own `/usr/share/omarchy/default/bash/aliases` on top (zsh-compatible), because omarchy-zsh's aliases lag behind bash's (its `cx` uses `bypassPermissions` instead of `auto`). Its `omarchy-setup-zsh` helper is deliberately not used because it overwrites `~/.bashrc` wholesale and drops Omarchy 4's env-bootstrap line. `.zshrc` also manually loads Ghostty/kitty zsh shell integration, since those terminals inject integration for bash, the shell they launch
+- Omarchy seeds `~/.config/starship.toml` (replaced only on confirmation, and only while it still matches `$OMARCHY_PATH/config/starship.toml`) and a LazyVim `~/.config/nvim` (detected via `lazyvim.json`; replaced only on confirmation, after moving config/data/state/cache to `*.omarchy-backup-*`). Omarchy's tmux config lives in `~/.config/tmux/tmux.conf` and is shadowed if `~/.tmux.conf` is installed
+
 ### Neovim Setup (all Unix scripts)
 
 The Neovim **config** is shared and platform-independent: [config/nvim/init.lua](config/nvim/init.lua) (lazy.nvim bootstrap + plugin specs for `nvim-tree/nvim-tree.lua`, `nvim-telescope/telescope.nvim` fuzzy finder, `lewis6991/gitsigns.nvim` in-file git change signs, and `sindrets/diffview.nvim` repo-wide git diff UI) and [config/nvim/lazy-lock.json](config/nvim/lazy-lock.json) (commit-pinned lockfile, committed to the repo). Both are deployed to `~/.config/nvim/` via `fetch_config`. The plugin install step runs `nvim --headless "+Lazy! restore" +qa` to honor the lockfile (falling back to `+Lazy! sync` if no lockfile is present), and it runs on **every** invocation — not just fresh installs — so re-running the script installs any plugins the deployed config declares but that aren't installed yet. Existing `~/.config/nvim/init.lua` is preserved (warn + skip): the config files are only fetched on a fresh install, so re-runs never overwrite local edits, and newly-added plugins are only picked up once the deployed `init.lua` actually declares them (i.e. on a fresh machine, or after manually syncing the config).
@@ -67,6 +75,7 @@ The Neovim **config** is shared and platform-independent: [config/nvim/init.lua]
 Only the Neovim **install command** differs per platform:
 - **macOS**: `brew install neovim`
 - **Fedora**: `sudo dnf install -y neovim` (ships a current Neovim)
+- **Omarchy**: `omarchy-pkg-add neovim` (preinstalled); the config step is skipped unless the user opts to replace Omarchy's LazyVim config
 - **Ubuntu**: apt's Neovim is too old on LTS releases for lazy.nvim/nvim-tree, so it downloads the official `stable` release tarball (`nvim-linux-<arch>.tar.gz`, arch auto-detected like the Go step), extracts to `/opt`, and symlinks `/usr/local/bin/nvim`
 
 **Security note**: plugins are unsandboxed Lua. The setup only uses official repos (`nvim-tree/nvim-tree.lua` + `nvim-tree/nvim-web-devicons`, `nvim-telescope/telescope.nvim` + `nvim-lua/plenary.nvim`, `lewis6991/gitsigns.nvim`, `sindrets/diffview.nvim`) and pins commits via the committed `lazy-lock.json`. Upgrades are explicit (`:Lazy update`), never automatic.

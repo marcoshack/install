@@ -76,11 +76,16 @@ if [ "$DISTRO_ID" != "fedora" ]; then
             log_info "For Ubuntu, use this script instead:"
             log_info "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh)\""
             ;;
+        omarchy)
+            log_info "For Omarchy, use this script instead:"
+            log_info "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/omarchy.sh)\""
+            ;;
         *)
             log_warn "No installation script is currently available for $DISTRO_ID"
             log_info "Available scripts:"
             log_info "  - Ubuntu: https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/ubuntu.sh"
             log_info "  - Fedora: https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/fedora.sh"
+            log_info "  - Omarchy: https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/omarchy.sh"
             ;;
     esac
     exit 1
