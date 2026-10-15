@@ -1,5 +1,8 @@
 onboarding = false
 
+[ui]
+sidebar_max_width = 60
+
 [ui.toast]
 delivery = "system"
 
