@@ -578,19 +578,20 @@ else
         log_warn "to go back, run: chsh -s /usr/bin/bash"
     fi
 
-    if grep -qF "$HANDOFF_BEGIN" "$BASHRC_PATH" 2>/dev/null; then
-        log_info "zsh handoff already present in ~/.bashrc"
-    else
-        [ -f "$BASHRC_PATH" ] && cp "$BASHRC_PATH" "$BASHRC_PATH.$(date +%Y%m%d)"
-
-        HANDOFF_FILE=$(mktemp)
-        cat > "$HANDOFF_FILE" << EOF
+    HANDOFF_FILE=$(mktemp)
+    cat > "$HANDOFF_FILE" << EOF
 $HANDOFF_BEGIN
 # Omarchy's session and scripts expect bash as the login shell, so keep it and
 # exec into zsh for interactive terminals instead. Stays bash for \`bash -c\`,
 # for a bash started from a shell on purpose, and for nested shells (except
 # tmux/herdr panes, whose long-lived server may have been started from bash).
 # Delete this block to go back to bash.
+# The rest of this file (and Omarchy's bash rc) is bash-only, so stop here when
+# another shell sources it, e.g. \`. ~/.bashrc\` typed in zsh.
+if [[ -z \${BASH_VERSION:-} ]]; then
+  echo "~/.bashrc is bash-only; in zsh run: source ~/.zshrc" >&2
+  return 0 2>/dev/null
+fi
 if [[ \$- == *i* && -z \${BASH_EXECUTION_STRING:-} ]] && command -v zsh >/dev/null 2>&1; then
   _zsh_handoff_parent=\$(ps -o comm= -p "\$PPID" 2>/dev/null)
   if [[ \$_zsh_handoff_parent != zsh && \$_zsh_handoff_parent != bash ]] && [[ \${SHLVL:-1} == 1 || -n \${TMUX:-} || -n \${HERDR_PANE_ID:-} ]]; then
@@ -602,6 +603,23 @@ if [[ \$- == *i* && -z \${BASH_EXECUTION_STRING:-} ]] && command -v zsh >/dev/nu
 fi
 $HANDOFF_END
 EOF
+
+    if grep -qF "$HANDOFF_BEGIN" "$BASHRC_PATH" 2>/dev/null; then
+        # Refresh an existing block in place so re-runs pick up fixes to it
+        awk -v f="$HANDOFF_FILE" -v b="$HANDOFF_BEGIN" -v e="$HANDOFF_END" '
+            $0 == b { while ((getline line < f) > 0) print line; skip = 1; next }
+            skip && $0 == e { skip = 0; next }
+            !skip { print }' "$BASHRC_PATH" > "$BASHRC_PATH.tmp"
+        if cmp -s "$BASHRC_PATH" "$BASHRC_PATH.tmp"; then
+            rm -f "$BASHRC_PATH.tmp"
+            log_info "zsh handoff already up to date in ~/.bashrc"
+        else
+            cp "$BASHRC_PATH" "$BASHRC_PATH.$(date +%Y%m%d)"
+            mv "$BASHRC_PATH.tmp" "$BASHRC_PATH"
+            log_info "✓ Updated zsh handoff in ~/.bashrc (backup: ~/.bashrc.$(date +%Y%m%d))"
+        fi
+    else
+        [ -f "$BASHRC_PATH" ] && cp "$BASHRC_PATH" "$BASHRC_PATH.$(date +%Y%m%d)"
 
         # Insert right after Omarchy's "not interactive -> return" guard so the
         # env-bootstrap line above it keeps running for non-interactive shells.
@@ -617,9 +635,9 @@ EOF
         else
             { echo; cat "$HANDOFF_FILE"; } >> "$BASHRC_PATH"
         fi
-        rm -f "$HANDOFF_FILE"
         log_info "✓ Added zsh handoff to ~/.bashrc (backup: ~/.bashrc.$(date +%Y%m%d))"
     fi
+    rm -f "$HANDOFF_FILE"
     log_info "New terminal windows will open zsh; your login shell stays bash"
 fi
 
