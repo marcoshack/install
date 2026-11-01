@@ -86,7 +86,7 @@ Only the Neovim **install command** differs per platform:
 
 - **macOS**: `brew install herdr`; config at `~/.config/herdr/config.toml` via `fetch_config`
 - **Fedora/Ubuntu**: the official installer (`https://herdr.dev/install.sh`, which installs to `~/.local/bin` and verifies the SHA-256). It is downloaded into a variable before running it, so a failed download is not piped into `sh` as an empty script. A failed install logs a warning and the script continues. Config at `~/.config/herdr/config.toml` via `fetch_config`
-- **Omarchy**: `omarchy-pkg-add herdr` (packaged in the Omarchy repository). Config at `~/.config/herdr/config.toml` via `fetch_config`
+- **Omarchy**: `omarchy-pkg-add herdr` (packaged in the Omarchy repository). Config at `~/.config/herdr/config.toml` via `fetch_config`. An Omarchy migration seeds that file with Omarchy's tmux-style config, so (like `starship.toml`) the script offers to replace it on confirmation, but only while it still matches `$OMARCHY_PATH/config/herdr/config.toml` (ignoring the `onboarding = ...` line herdr adds on first launch). The old file is backed up to `*.omarchy-backup-*`
 - **Windows**: the official `install.ps1` (stable channel; winget only has `Herdr.Herdr.Preview`), run in a child `powershell` process so the installer's `Set-StrictMode`/`exit` cannot affect the setup script. Config downloaded to `%APPDATA%\herdr\config.toml`
 
 ### Windows PowerShell Script Structure

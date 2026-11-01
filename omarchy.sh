@@ -694,14 +694,34 @@ else
 
     HERDR_CONF_DIR="$HOME/.config/herdr"
     HERDR_CONF_PATH="$HERDR_CONF_DIR/config.toml"
+    OMARCHY_HERDR_DEFAULT="${OMARCHY_PATH:-/usr/share/omarchy}/config/herdr/config.toml"
     mkdir -p "$HERDR_CONF_DIR"
 
-    if [ -f "$HERDR_CONF_PATH" ]; then
-        log_warn "herdr config already exists at $HERDR_CONF_PATH - keeping existing config"
+    # An Omarchy migration (run by `omarchy update` in step 1) seeds
+    # ~/.config/herdr/config.toml with Omarchy's tmux-style config, so offer to
+    # replace it only while it's still that untouched default. herdr itself adds
+    # an `onboarding = ...` line on first launch, so ignore that when comparing.
+    INSTALL_HERDR_CONF=false
+    if [ ! -f "$HERDR_CONF_PATH" ]; then
+        INSTALL_HERDR_CONF=true
+    elif [ -f "$OMARCHY_HERDR_DEFAULT" ] && cmp -s <(grep -v '^onboarding *=' "$HERDR_CONF_PATH") <(grep -v '^onboarding *=' "$OMARCHY_HERDR_DEFAULT"); then
+        log_info "$HERDR_CONF_PATH is Omarchy's default herdr config"
+        read -p "Do you want to replace it with the provided herdr config.toml? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            INSTALL_HERDR_CONF=true
+            cp "$HERDR_CONF_PATH" "$HERDR_CONF_PATH.omarchy-backup-$(date +%Y%m%d-%H%M%S)"
+        else
+            log_info "Keeping Omarchy's herdr config"
+        fi
     else
+        log_warn "herdr config already exists at $HERDR_CONF_PATH - keeping existing config"
+    fi
+
+    if [ "$INSTALL_HERDR_CONF" = true ]; then
         log_info "Installing herdr configuration..."
         fetch_config "herdr/config.toml" "$HERDR_CONF_PATH"
-        log_info "✓ herdr config written to $HERDR_CONF_PATH"
+        log_info "✓ herdr config written to $HERDR_CONF_PATH (restore Omarchy's with: omarchy-refresh-config herdr/config.toml)"
     fi
 fi
 
