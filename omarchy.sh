@@ -149,6 +149,7 @@ log_info " 11. Zsh Configuration"
 log_info " 12. Zsh Terminal Handoff (bash stays the login shell)"
 log_info " 13. Neovim Configuration (nvim-tree)"
 log_info " 14. Herdr Installation and Configuration"
+log_info " 15. Hyprland Look'n'Feel (half window gaps)"
 log_info ""
 
 # Initialize skip flags
@@ -740,6 +741,40 @@ else
         log_info "Installing herdr configuration..."
         fetch_config "herdr/config.toml" "$HERDR_CONF_PATH"
         log_info "✓ herdr config written to $HERDR_CONF_PATH (restore Omarchy's with: omarchy-refresh-config herdr/config.toml)"
+    fi
+fi
+
+# Step 15: Hyprland look'n'feel overrides
+if should_skip_step 15; then
+    log_warn "Skipping Step 15: Hyprland Look'n'Feel"
+else
+    log_info "Step 15: Halving Hyprland window gaps..."
+    # ~/.config/hypr/looknfeel.lua is Omarchy's user override file, loaded after
+    # its defaults (gaps_in = 5, gaps_out = 10). Add a marked block; re-runs leave it alone.
+    LOOKNFEEL_PATH="$HOME/.config/hypr/looknfeel.lua"
+    GAPS_BEGIN="-- >>> window gaps (marcoshack/install omarchy.sh) >>>"
+
+    if [ ! -f "$LOOKNFEEL_PATH" ]; then
+        log_warn "$LOOKNFEEL_PATH not found; skipping window gaps override"
+    elif grep -qF "$GAPS_BEGIN" "$LOOKNFEEL_PATH"; then
+        log_info "Window gaps override already present in $LOOKNFEEL_PATH"
+    else
+        cp "$LOOKNFEEL_PATH" "$LOOKNFEEL_PATH.$(date +%Y%m%d)"
+        cat >> "$LOOKNFEEL_PATH" << EOF
+
+$GAPS_BEGIN
+-- Half of Omarchy's default gaps (gaps_in = 5, gaps_out = 10).
+hl.config({
+  general = {
+    gaps_in = 2,
+    gaps_out = 5,
+  },
+})
+-- <<< window gaps <<<
+EOF
+        log_info "✓ Window gaps halved in $LOOKNFEEL_PATH (backup: $LOOKNFEEL_PATH.$(date +%Y%m%d))"
+        # Hyprland auto-reloads on save; reload explicitly when we're inside a session
+        command -v hyprctl >/dev/null 2>&1 && hyprctl reload >/dev/null 2>&1 || true
     fi
 fi
 
