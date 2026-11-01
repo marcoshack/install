@@ -150,6 +150,7 @@ log_info " 12. Zsh Terminal Handoff (bash stays the login shell)"
 log_info " 13. Neovim Configuration (nvim-tree)"
 log_info " 14. Herdr Installation and Configuration"
 log_info " 15. Hyprland Look'n'Feel (half window gaps)"
+log_info " 16. Idle Timeouts (screensaver 15 min, lock 20 min)"
 log_info ""
 
 # Initialize skip flags
@@ -775,6 +776,39 @@ EOF
         log_info "✓ Window gaps halved in $LOOKNFEEL_PATH (backup: $LOOKNFEEL_PATH.$(date +%Y%m%d))"
         # Hyprland auto-reloads on save; reload explicitly when we're inside a session
         command -v hyprctl >/dev/null 2>&1 && hyprctl reload >/dev/null 2>&1 || true
+    fi
+fi
+
+# Step 16: Start the screensaver after 15 minutes of inactivity, lock after 20
+if should_skip_step 16; then
+    log_warn "Skipping Step 16: Screensaver and Lock Idle Timeouts"
+else
+    log_info "Step 16: Setting screensaver to 15 minutes and lock to 20 minutes..."
+    # idle.screensaver and idle.lock in ~/.config/omarchy/shell.json are seconds
+    # since idle began (Omarchy's defaults are 150 and 300). The shell hot-reloads
+    # the file on save.
+    SHELL_JSON_PATH="$HOME/.config/omarchy/shell.json"
+    SCREENSAVER_SECONDS=900
+    LOCK_SECONDS=1200
+
+    if [ ! -f "$SHELL_JSON_PATH" ]; then
+        log_warn "$SHELL_JSON_PATH not found; skipping idle timeouts"
+    else
+        omarchy-pkg-add jq
+        if jq --argjson s "$SCREENSAVER_SECONDS" --argjson l "$LOCK_SECONDS" \
+            '.idle.screensaver = $s | .idle.lock = $l' "$SHELL_JSON_PATH" > "$SHELL_JSON_PATH.tmp"; then
+            if cmp -s <(jq -S . "$SHELL_JSON_PATH") <(jq -S . "$SHELL_JSON_PATH.tmp"); then
+                rm -f "$SHELL_JSON_PATH.tmp"
+                log_info "Idle timeouts already set (screensaver 15 min, lock 20 min)"
+            else
+                cp "$SHELL_JSON_PATH" "$SHELL_JSON_PATH.$(date +%Y%m%d)"
+                mv "$SHELL_JSON_PATH.tmp" "$SHELL_JSON_PATH"
+                log_info "✓ Screensaver starts after 15 minutes, lock after 20 (backup: $SHELL_JSON_PATH.$(date +%Y%m%d))"
+            fi
+        else
+            rm -f "$SHELL_JSON_PATH.tmp"
+            log_warn "Could not parse $SHELL_JSON_PATH; idle timeouts unchanged"
+        fi
     fi
 fi
 
