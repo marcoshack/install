@@ -191,6 +191,21 @@ try {
 } catch {
     Write-Warn "glow installation failed, but continuing..."
 }
+
+# glow pages long output through $PAGER, defaulting to `less`, which Windows doesn't ship
+Write-Info "Installing less (pager used by glow)..."
+try {
+    if (-not (Get-Command less -ErrorAction SilentlyContinue)) {
+        winget install jftuga.less --silent --accept-source-agreements --accept-package-agreements
+        Write-Info "✓ less installed"
+        # Refresh PATH
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    } else {
+        Write-Info "less is already installed"
+    }
+} catch {
+    Write-Warn "less installation failed, but continuing..."
+}
 #endregion
 
 #region Install Python 3.14 and uv via winget
@@ -422,6 +437,12 @@ if (Get-Command glow -ErrorAction SilentlyContinue) {
     Write-Warn "✗ glow not found"
 }
 
+if (Get-Command less -ErrorAction SilentlyContinue) {
+    Write-Info "✓ less installed"
+} else {
+    Write-Warn "✗ less not found (glow needs it as its pager)"
+}
+
 if (Get-Command python3.14 -ErrorAction SilentlyContinue) {
     $version = python3.14 --version
     Write-Info "✓ Python: $version"
@@ -483,7 +504,7 @@ Write-Info "  - Terminal-Icons (colorful file/folder icons)"
 Write-Info "  - PSReadLine (enhanced command-line editing with 100k history)"
 Write-Info "  - PSFzf (fuzzy finder integration with Ctrl+T and Ctrl+R)"
 Write-Info "  - fzf (command-line fuzzy finder)"
-Write-Info "  - glow (markdown reader)"
+Write-Info "  - glow (markdown reader) + less (its pager)"
 Write-Info "  - Python 3.14"
 Write-Info "  - uv (Python package manager)"
 Write-Info "  - herdr (agent multiplexer)"
