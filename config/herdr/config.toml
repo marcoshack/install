@@ -6,6 +6,9 @@ sidebar_max_width = 60
 [ui.toast]
 delivery = "system"
 
+[ui.toast.herdr]
+position = "top-right"
+
 [keys]
 previous_tab = "alt+left"
 next_tab = "alt+right"
