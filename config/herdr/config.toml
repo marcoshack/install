@@ -4,7 +4,7 @@ onboarding = false
 sidebar_max_width = 60
 
 [ui.toast]
-delivery = "system"
+delivery = "herdr"
 
 [ui.toast.herdr]
 position = "top-right"
