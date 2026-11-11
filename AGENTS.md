@@ -1,0 +1,341 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Repository Purpose
+
+This repository contains automated setup scripts for Linux distributions and Windows PowerShell. The scripts are designed to be executed via one-line commands to set up fresh installations:
+
+**Linux distributions** (Fedora, Ubuntu, Omarchy): Complete development environment with Go, Rust, Git, zsh, and essential CLI tools.
+
+**Windows PowerShell**: Beautiful shell customization with Starship, fuzzy finder, enhanced history, and Git aliases. Focuses on shell experience rather than development tools (which are typically done in WSL).
+
+**Critical Design Constraint**: All functionality must be self-contained within a single file per platform:
+- Linux: `.sh` files executed via `bash -c "$(curl -fsSL <url>)"`
+- Windows: `.ps1` file executed via `irm <url> | iex`
+
+Each script must be completely standalone.
+
+## Script Architecture
+
+### Linux Scripts Structure
+
+All Linux distribution scripts follow this standardized flow:
+
+1. **Logging Functions**: Colored output helpers (log_info, log_warn, log_error)
+2. **Root Check**: Prevent running as root, will prompt for sudo when needed
+3. **System Update**: Update package manager and upgrade packages
+4. **Development Tools**: Install compiler toolchains and basic utilities (gcc, make, git, curl, vim, etc.)
+5. **Git Configuration**:
+   - Force HTTPS for GitHub (SSH key not yet available)
+   - Prompt for username/email with existing config detection
+6. **SSH Key Generation**: Create Ed25519 key for GitHub with smart email detection
+7. **CLI Tools**: Install zsh, fzf, ripgrep, bat, fd
+8. **Programming Languages**: Install Go and Rust (methods vary by distro)
+9. **Starship + Plugins Setup**: Install Starship via package manager (or upstream installer on Ubuntu), plus `zsh-autosuggestions` and `zsh-syntax-highlighting` from the OS package manager, and write `~/.config/starship.toml`
+10. **Zsh Configuration**: Write complete .zshrc with plugins and environment. Aliases live in the shared [config/aliases](config/aliases) (bash+zsh compatible), deployed to `~/.config/shell/aliases` (overwritten on every run) and sourced by `.zshrc` and by a one-line hook appended once to `~/.bashrc`. Add aliases there, not in the scripts; keep the git ones in sync with `windows.ps1`. Only `find='fd'` (Fedora/macOS) stays inline in `.zshrc`
+11. **Default Shell**: Change to zsh
+12. **Neovim Setup**: Install Neovim and write `~/.config/nvim/` with nvim-tree + Telescope, managed by lazy.nvim
+13. **Herdr Setup**: Install herdr (see below) and write `~/.config/herdr/config.toml`
+14. **Verification**: Check all installations succeeded
+15. **Summary Display**: Show SSH key, git config, next steps
+
+### Linux Distribution-Specific Differences
+
+**Fedora ([fedora.sh](fedora.sh))**:
+- Package manager: `dnf`
+- Go installation: Via `dnf install golang`
+- Rust installation: Via `dnf install rust cargo`
+- Bat command: Works as `bat` directly
+- Fd command: Installed via `fd-find`, works as `fd` directly
+
+**Ubuntu ([ubuntu.sh](ubuntu.sh))**:
+- Package manager: `apt`
+- Go installation: Downloads latest from go.dev, extracts to `/usr/local/go`
+  - Auto-detects architecture (amd64, arm64, armv6l)
+  - Fetches version dynamically from https://go.dev/VERSION?m=text
+- Rust installation: Via rustup using `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
+  - Non-interactive installation with `-y` flag
+  - Sources `~/.cargo/env` for current session
+- Bat command: Installed as `batcat`, creates symlink to `bat` in `~/.local/bin`
+- Fd command: Installed via `fd-find` as `fdfind`, creates symlink to `fd` in `~/.local/bin`
+
+**Omarchy ([omarchy.sh](omarchy.sh))**:
+- Detection: `ID=omarchy` in `/etc/os-release` (Omarchy 4+), or `ID=arch` with `omarchy-pkg-add` on PATH (older releases)
+- Package manager: `omarchy-pkg-add` (idempotent `pacman -S --needed` wrapper). System update runs `omarchy-update`, which snapshots and runs migrations, instead of a bare `pacman -Syu`
+- Go, Python, uv: pacman. Rust: `rustup` package + `rustup default stable`
+- **Login shell is NOT changed.** Omarchy's session and tooling assume bash, and upstream (omacom/omarchy discussions #2495, #10723) says to keep bash as the login shell. Step 12 inserts a marked `# >>> zsh handoff ... <<<` block into `~/.bashrc`, right after Omarchy's `[[ $- != *i* ]] && return` guard, so its env-bootstrap line still runs for non-interactive shells. The block execs `zsh` (`--login` for login shells) only when: interactive, not `bash -c`, the parent isn't bash/zsh, and `SHLVL==1` or inside a tmux/herdr pane. It exports `SHELL=zsh` so tmux/herdr/nvim spawn zsh (`config/tmux.conf` relies on `$SHELL`). The block first returns early (with a hint) when `$BASH_VERSION` is empty, so `. ~/.bashrc` typed in zsh doesn't run `shopt` or Omarchy's bash-only rc. Re-runs replace an existing block between the markers in place, so fixes to it reach already-configured machines
+- `.zshrc` sources Omarchy's official `omarchy-zsh` package (`/usr/share/omarchy-zsh/shell/{zoptions,all}`) so Omarchy updates flow in, then layers Omarchy's own `/usr/share/omarchy/default/bash/aliases` on top (zsh-compatible), because omarchy-zsh's aliases lag behind bash's (its `cx` uses `bypassPermissions` instead of `auto`). Its `omarchy-setup-zsh` helper is deliberately not used because it overwrites `~/.bashrc` wholesale and drops Omarchy 4's env-bootstrap line. `.zshrc` also manually loads Ghostty/kitty zsh shell integration, since those terminals inject integration for bash, the shell they launch
+- Omarchy seeds `~/.config/starship.toml` (replaced only on confirmation, and only while it still matches `$OMARCHY_PATH/config/starship.toml`) and a LazyVim `~/.config/nvim` (detected via `lazyvim.json`; replaced only on confirmation, after moving config/data/state/cache to `*.omarchy-backup-*`). Omarchy's tmux config lives in `~/.config/tmux/tmux.conf` and is shadowed if `~/.tmux.conf` is installed
+- Step 15 (after herdr, so saved step numbers stay valid) appends a marked `-- >>> window gaps ... >>>` block to `~/.config/hypr/looknfeel.lua` (Omarchy's user override file) setting `general.gaps_in = 2` and `gaps_out = 5`, half of Omarchy's defaults (5/10). Skipped if the marker is already present
+- Step 16 sets `idle.screensaver = 900` and `idle.lock = 1200` (15/20 min; Omarchy's defaults are 150/300s) in `~/.config/omarchy/shell.json` with `jq`, backing up the file only when it changes
+
+### Neovim Setup (all Unix scripts)
+
+The Neovim **config** is shared and platform-independent: [config/nvim/init.lua](config/nvim/init.lua) (lazy.nvim bootstrap + plugin specs for `nvim-tree/nvim-tree.lua`, `nvim-telescope/telescope.nvim` fuzzy finder, `lewis6991/gitsigns.nvim` in-file git change signs, and `sindrets/diffview.nvim` repo-wide git diff UI) and [config/nvim/lazy-lock.json](config/nvim/lazy-lock.json) (commit-pinned lockfile, committed to the repo). Both are deployed to `~/.config/nvim/` via `fetch_config`. The plugin install step runs `nvim --headless "+Lazy! restore" +qa` to honor the lockfile (falling back to `+Lazy! sync` if no lockfile is present), and it runs on **every** invocation — not just fresh installs — so re-running the script installs any plugins the deployed config declares but that aren't installed yet. Existing `~/.config/nvim/init.lua` is preserved (warn + skip): the config files are only fetched on a fresh install, so re-runs never overwrite local edits, and newly-added plugins are only picked up once the deployed `init.lua` actually declares them (i.e. on a fresh machine, or after manually syncing the config).
+
+Only the Neovim **install command** differs per platform:
+- **macOS**: `brew install neovim`
+- **Fedora**: `sudo dnf install -y neovim` (ships a current Neovim)
+- **Omarchy**: `omarchy-pkg-add neovim` (preinstalled); the config step is skipped unless the user opts to replace Omarchy's LazyVim config
+- **Ubuntu**: apt's Neovim is too old on LTS releases for lazy.nvim/nvim-tree, so it downloads the official `stable` release tarball (`nvim-linux-<arch>.tar.gz`, arch auto-detected like the Go step), extracts to `/opt`, and symlinks `/usr/local/bin/nvim`
+
+**Security note**: plugins are unsandboxed Lua. The setup only uses official repos (`nvim-tree/nvim-tree.lua` + `nvim-tree/nvim-web-devicons`, `nvim-telescope/telescope.nvim` + `nvim-lua/plenary.nvim`, `lewis6991/gitsigns.nvim`, `sindrets/diffview.nvim`) and pins commits via the committed `lazy-lock.json`. Upgrades are explicit (`:Lazy update`), never automatic.
+
+### herdr Setup (all platforms)
+
+[herdr](https://herdr.dev) (agent multiplexer) is the last numbered step in each Unix script, so step numbers saved in `~/.install.conf` stay valid. The config [config/herdr/config.toml](config/herdr/config.toml) has no platform-specific settings, so the same file is used everywhere. As with `starship.toml`, an existing config is kept with a warning and never overwritten. The install is skipped if `herdr` is already on PATH; herdr updates itself with `herdr update`.
+
+- **macOS**: `brew install herdr`; config at `~/.config/herdr/config.toml` via `fetch_config`
+- **Fedora/Ubuntu**: the official installer (`https://herdr.dev/install.sh`, which installs to `~/.local/bin` and verifies the SHA-256). It is downloaded into a variable before running it, so a failed download is not piped into `sh` as an empty script. A failed install logs a warning and the script continues. Config at `~/.config/herdr/config.toml` via `fetch_config`
+- **Omarchy**: `omarchy-pkg-add herdr` (packaged in the Omarchy repository). Config at `~/.config/herdr/config.toml` via `fetch_config`. An Omarchy migration seeds that file with Omarchy's tmux-style config, so (like `starship.toml`) the script offers to replace it on confirmation, but only while it still matches `$OMARCHY_PATH/config/herdr/config.toml` (ignoring the `onboarding = ...` line herdr adds on first launch). The old file is backed up to `*.omarchy-backup-*`
+- **Windows**: the official `install.ps1` (stable channel; winget only has `Herdr.Herdr.Preview`), run in a child `powershell` process so the installer's `Set-StrictMode`/`exit` cannot affect the setup script. Config downloaded to `%APPDATA%\herdr\config.toml`
+
+### Windows PowerShell Script Structure
+
+The Windows script ([windows.ps1](windows.ps1)) focuses on shell customization rather than development tools (as development is done in WSL):
+
+1. **Administrative Check**: Requires running as administrator
+2. **Helper Functions**: Colored output helpers (Write-Info, Write-Warn, Write-Err)
+3. **Winget Verification**: Ensures winget is available for package management
+4. **Starship Installation**: Installs or upgrades Starship via winget (`Starship.Starship`)
+5. **Nerd Font Installation**: Downloads and installs FiraCode Nerd Font from the Nerd Fonts GitHub release
+6. **PowerShell Modules**: Installs Terminal-Icons, PSReadLine, and PSFzf
+7. **Command-line Tools**: Installs fzf via winget
+8. **Profile Configuration**: Creates PowerShell profile with:
+   - Starship initialization (`Invoke-Expression (&starship init powershell)`)
+   - Terminal-Icons import
+   - PSFzf configuration (Ctrl+T for file finder, Ctrl+R for history search)
+   - PSReadLine configuration (history search, predictions, key bindings, 100k history)
+   - Git aliases (matching the user's existing aliases)
+   - Utility aliases (ll, .., ..., wsl-here)
+9. **Starship Config**: Writes `~/.config/starship.toml` matching the user's minimal config (no newline, single line, `$` character)
+10. **Windows Terminal Configuration**: Automatically sets Nerd Font in Windows Terminal if installed
+11. **Verification**: Checks all installations succeeded
+12. **Summary Display**: Shows next steps, available aliases, and PSFzf key bindings
+
+**Key Design Principles**:
+- No user prompts (fully automated with `--silent`, `--accept-source-agreements`, `-Force` flags)
+- Uses winget for package management where possible
+- Preserves user's existing Git aliases from their configuration
+- Uses Starship as the prompt engine with a shared cross-platform config (`~/.config/starship.toml`)
+- Configures PSReadLine for enhanced command-line experience
+
+## Key Implementation Details
+
+### Windows PowerShell Specifics
+
+**Non-Interactive Installation**:
+- All winget commands use `--silent --accept-source-agreements --accept-package-agreements`
+- All PowerShell module installations use `-Force -Scope CurrentUser`
+- No confirmation prompts for file overwrites
+
+**Profile and Prompt Management**:
+- PowerShell profile: `$PROFILE` (typically `~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1`)
+- Starship config: `~/.config/starship.toml` (same path used on macOS/Linux)
+- Profile includes Starship init, PSFzf, PSReadLine (100k history), and Terminal-Icons
+
+**Git Aliases**:
+The script creates PowerShell functions that mirror the user's existing Git workflow:
+- Uses `git.exe` explicitly to avoid potential aliases
+- Preserves exact behavior from existing `aliases.ps1`
+- Includes `gdiffdump` function that generates timestamped diff files
+
+**Font Configuration**:
+- Downloads FiraCode Nerd Font from the Nerd Fonts GitHub release and installs into `%WINDIR%\Fonts`
+- Automatically configures Windows Terminal to use "FiraCode Nerd Font"
+- Provides manual configuration instructions if automatic setup fails
+
+**PSFzf Integration**:
+- Installs both fzf (command-line tool) and PSFzf (PowerShell module)
+- Configures Ctrl+T for fuzzy file/folder finding
+- Configures Ctrl+R for fuzzy history search
+- Enables fuzzy edit and fuzzy history aliases
+- Matches user's existing PSFzf configuration
+
+### Git HTTPS-First Strategy (Linux Only)
+
+Linux scripts configure git to use HTTPS instead of SSH at the start:
+```bash
+git config --global url."https://github.com/".insteadOf git@github.com:
+git config --global url."https://".insteadOf git://
+```
+
+This is required because:
+- Starship's upstream installer and some plugins may need GitHub access
+- SSH key hasn't been uploaded to GitHub yet
+- User instructions include how to reverse this after uploading SSH key
+
+### Safe Prompts Pattern
+
+Scripts check for existing configurations and prompt before overwriting:
+- Git username/email
+- SSH keys
+
+For `~/.config/starship.toml` (all platforms), scripts skip writing if the file already exists and log a warning. No prompt — the existing config is preserved as-is. Otherwise the file is sourced via the `fetch_config` helper (see below; same pattern as `config/tmux.conf` and `config/nvim/`).
+
+### Bash Re-exec Guard
+
+The Unix scripts are bash, not POSIX sh: they use `[[ ]]`, `<<<` here-strings, `read -ra`, arrays and `local`. When a user runs `sh -c "$(curl …)"` the shebang is ignored, and on Ubuntu `/bin/sh` is dash, which fails on all of those. So each script starts (right after `set -e`) with a guard: if `$BASH_VERSION` is empty it re-execs under bash — `exec bash "$0"` when `$0` is an existing `*.sh` file (local checkout), otherwise by re-fetching its own `SELF_URL` and running `exec bash -c "$SELF_SRC"`. The root check uses `$(id -u)` rather than `$EUID` since dash has no `$EUID`.
+
+Keep the guard first: any bashism above it runs under the wrong shell. `SELF_URL` is hardcoded per script (it is needed before `RAW_BASE_URL` is defined), so update it if the repo path ever changes.
+
+### Config File Sourcing (local vs remote)
+
+Each Unix script (`macos.sh`, `fedora.sh`, `ubuntu.sh`) defines a `fetch_config <relative-path> <dest>` helper near the top, plus a source-detection block. The same script works whether run from a local checkout or piped from `curl`:
+
+- **Local** (`./macos.sh` from a checkout): `SCRIPT_DIR` resolves to the repo and `config/starship.toml` exists there, so `LOCAL_CONFIG_DIR` is set and files are **copied** from `./config/`.
+- **Remote** (`bash -c "$(curl … macos.sh)"`): `$0` is `bash` (there is no script file), so the local-config check fails and `fetch_config` **downloads** from `$RAW_BASE_URL/config/<path>`.
+
+When adding a new shipped config file, place it under `config/` and fetch it with `fetch_config "<subpath>" "<dest>"` rather than a hardcoded `curl`. The model is **copy + manual sync**: there are no symlinks, so after editing a config on a machine (e.g. running `:Lazy update`, which rewrites `~/.config/nvim/lazy-lock.json`) you must copy the changed file back into the repo to commit it.
+
+Pattern used throughout:
+```bash
+if [ existing_config_detected ]; then
+    log_warn "Already configured"
+    read -p "Do you want to reconfigure? (y/N): " -n 1 -r
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        SKIP_OPERATION=true
+    fi
+fi
+```
+
+### SSH Key Email Detection
+
+Smart cascade for SSH key email:
+1. Use `$GIT_EMAIL` if set during this session
+2. Fall back to `git config --global user.email`
+3. Prompt user if neither available
+
+### Path Configuration
+
+Go and Rust environments must be added to both:
+- `~/.profile`: For system-level PATH (source for new sessions)
+- `~/.zshrc`: For immediate zsh usage
+
+Rust specifically:
+- Fedora: Manual `CARGO_HOME` and PATH configuration
+- Ubuntu: Sources `~/.cargo/env` which is created by rustup installer
+
+## Testing Commands
+
+When modifying scripts, test with these scenarios:
+
+### Linux Scripts
+1. **Fresh installation**: Run script on clean system
+2. **Re-run**: Run script again on already-configured system (should handle gracefully)
+3. **Partial config**: Test with existing git config but no SSH key
+4. **Verification**: After completion, verify:
+   ```bash
+   go version
+   rustc --version
+   cargo --version
+   zsh --version
+   fzf --version
+   rg --version
+   bat --version
+   ```
+
+### Windows Script
+1. **Fresh installation**: Run script on clean Windows system (as Administrator)
+2. **Re-run**: Run script again on already-configured system (should upgrade/update)
+3. **Verification**: After completion, verify in a new PowerShell session:
+   ```powershell
+   starship --version
+   fzf --version
+   Get-Module -ListAvailable Terminal-Icons
+   Get-Module -ListAvailable PSReadLine
+   Get-Module -ListAvailable PSFzf
+   Test-Path $PROFILE
+   Test-Path "$env:USERPROFILE\.config\starship.toml"
+   # Test that prompt is themed and Git aliases work
+   gst  # Should run git status
+   # Test PSFzf keybindings
+   # Press Ctrl+T to fuzzy find files
+   # Press Ctrl+R to search history
+   ```
+
+## Repository URL Structure
+
+Scripts are hosted on GitHub and accessed via raw URLs:
+
+**Linux**:
+```
+https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/{distro}.sh
+```
+
+**Windows**:
+```
+https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/windows.ps1
+```
+
+When creating new distribution scripts, use these URL patterns in README.md.
+
+## Commit messages
+
+Commits follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):
+
+    <type>[(scope)][!]: <description>
+
+    [body]
+
+    [footers]
+
+- Types: `feat` (new setup step, tool or config users get), `fix` (a script or config that misbehaved), `docs` (README, AGENTS.md, `docs/`), `style` (formatting only, no behaviour change), `refactor` (restructuring without behaviour change), `perf` (faster install or shell startup), `test` (test scripts), `build` (packaging or dependency pins such as `lazy-lock.json`), `ci` (CI workflows), `chore` (repo housekeeping), `revert` (reverting an earlier commit). `feat` and `fix` are for changes users see; pick the type for what the change does, not the files it touches.
+- Scope: optional; name the area changed, for example `omarchy`, `ubuntu`, `windows`, `nvim`, `herdr` or `zsh`.
+- Description: imperative mood, lowercase first word, no trailing period, the whole subject at most 72 characters.
+- Body: why the change was made, wrapped at 72 characters, after a blank line.
+- Breaking changes: `!` before the colon, and a `BREAKING CHANGE: <what breaks and how to migrate>` footer.
+- One logical change per commit. A change spanning two types is two commits.
+
+## Knowledge base
+
+`docs/` is an [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) (OKF) v0.2 bundle. The rules below are enough to keep it conformant; read the spec only for a case they do not cover.
+
+### Finding information
+
+Navigate, do not read the whole tree: `docs/index.md` → `docs/<dir>/index.md` → the one concept you need. To jump straight to a target, grep the frontmatter: `grep -rl '^type: <Type>' docs/`, `grep -r '^description:' docs/ | grep -i <term>`.
+
+Read `status` before trusting a document: absent or `stable` is current; `draft` is a proposal that may still change; `deprecated` is history and never current behaviour. A `stale_after` in the past means the content is due for re-checking.
+
+### Writing a concept
+
+- One concept per file, named in kebab-case. `index.md` and `log.md` are reserved names and are never concepts.
+- Every concept starts with YAML frontmatter. Only `type` is required; always add `title` and `description`:
+
+  ```yaml
+  ---
+  type: Guide                           # one of: Guide, Reference, Design Decision
+  title: Short display name
+  description: One sentence saying what this concept is; index entries copy it verbatim.
+  tags: [short, lowercase, tags]
+  status: draft                         # draft | stable | deprecated; omit for stable
+  ---
+  ```
+
+- Types: `Guide` (a how-to for setting something up or using it), `Reference` (how the repository or a part of it is put together), `Design Decision` (why something is done the way it is, and the alternatives rejected).
+- Reuse an existing `type` before inventing one; a new type is added to the list above in the same change.
+- Body: structured markdown (headings, lists, tables, fenced code). Record why and the contracts the code cannot express; point to the script or config file that implements something instead of restating its logic.
+- Link to other concepts with paths relative to the current file (`../decisions/storage.md`), never bundle-absolute (`/decisions/storage.md`), which breaks when the bundle is rendered from inside the repository.
+- To retire a concept, set `status: deprecated` and say what replaced it; do not delete files other documents link to.
+
+### Provenance and verification
+
+- `sources` lists what a concept derives from: `- { id: <stable-key>, resource: <URL or path>, title: <label> }`. Attribute a claim with a footnote whose label is the source `id`: `…as the API requires.[^api-docs]` plus `[^api-docs]: API reference`. Never write a `# Citations` section.
+- Actors: an agent is `<producer>/<version>` (e.g. `claude-code/claude-opus-5-5`), a person is `human:<git config user.email>`, automation is `process:<id>`. Timestamps are UTC with the offset: `date -u +%Y-%m-%dT%H:%M:%SZ`.
+- `generated: { by: <actor>, at: <timestamp> }` records who last changed the content meaningfully.
+- `verified` is a list of `{ by, at }` events. Add one only after tracing the document's claims to the code or a passing test. Reading a document and acting on it is not verifying it. When you find a document wrong, fix it and add no event.
+
+### Index files
+
+- Every directory holding concepts has an `index.md`: section headings, then one `* [Title](relative/path.md) - description` line per concept or subdirectory, with the description copied from the concept's frontmatter.
+- `index.md` has no frontmatter, except the bundle root, which carries only `okf_version: "0.2"`.
+- Adding, renaming, retitling, re-describing or removing a concept updates every `index.md` that lists it, in the same change.
+
+### Log
+
+`docs/log.md` records decisions and corrections, newest first, under bare ISO date headings (`## 2026-05-22`, nothing after the date). Each entry is one line with a leading bold word and a link to the concept that carries it: `* **Decision**: … ([storage](decisions/storage.md))`. Routine edits are left to `git log`.
+
+### When code changes
+
+Update the concept that documents the changed behaviour in the same change as the code, and keep its `index.md` entry in step. The script-level rules in this file stay the primary reference for how the scripts work; `docs/` holds guides and the reasoning behind decisions.

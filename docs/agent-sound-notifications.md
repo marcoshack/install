@@ -1,3 +1,10 @@
+---
+type: Guide
+title: Agent sound notifications over SSH
+description: How to play a distinct sound on the Mac when a coding agent on a remote Linux host, inside herdr or tmux, needs input or finishes.
+tags: [herdr, tmux, iterm2, ssh, notifications]
+---
+
 # Agent sound notifications over SSH (herdr, tmux, iTerm2)
 
 Play a sound on your Mac when a coding agent (Claude Code, Kiro CLI, ...) running on a remote Linux host needs your input or finishes, without using the terminal bell.
