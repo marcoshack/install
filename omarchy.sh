@@ -558,13 +558,19 @@ export PATH=$PATH:$CARGO_HOME/bin
 # Local bin (uv tools, starship if installed there)
 export PATH="$HOME/.local/bin:$PATH"
 
-# Aliases (on top of Omarchy's: ls/lsa/lt via eza, cd via zoxide, ff, n, g, ...)
-alias ll='ls -lah'
-alias grep='grep --color=auto'
-alias cat='bat --style=plain --paging=never'
-alias gst='git status -sb'
-alias glo='git log --oneline --graph --decorate --all'
+# Shared aliases (bash + zsh), installed from config/aliases, layered
+# on top of Omarchy's (ls/lsa/lt via eza, cd via zoxide, ff, n, g, ...)
+[ -f ~/.config/shell/aliases ] && source ~/.config/shell/aliases
 EOF
+
+    # Shared aliases: both ~/.zshrc (above) and ~/.bashrc source this file
+    mkdir -p "$HOME/.config/shell"
+    fetch_config "aliases" "$HOME/.config/shell/aliases"
+    ALIASES_HOOK='[ -f ~/.config/shell/aliases ] && . ~/.config/shell/aliases'
+    if ! grep -qxF "$ALIASES_HOOK" "$HOME/.bashrc" 2>/dev/null; then
+        printf '\n# Shared aliases (marcoshack/install)\n%s\n' "$ALIASES_HOOK" >> "$HOME/.bashrc"
+    fi
+    log_info "✓ Shared aliases written to ~/.config/shell/aliases (sourced by .zshrc and .bashrc)"
 fi
 
 # Step 12: Hand interactive terminals to zsh (bash stays the login shell)

@@ -1,0 +1,18 @@
+# Shared shell aliases, managed by marcoshack/install (config/aliases).
+# Sourced by both ~/.zshrc and ~/.bashrc, so keep everything valid in bash AND zsh.
+# Re-running the install script overwrites this file; put personal aliases elsewhere.
+
+# Files and directories
+alias ll='ls -lah'
+alias la='ls -A'
+alias l='ls -CF'
+alias ..='cd ..'
+alias ...='cd ../..'
+
+# Tools
+alias grep='grep --color=auto'
+alias cat='bat --style=plain --paging=never'
+
+# Git (kept in sync with the PowerShell functions in windows.ps1)
+alias gst='git status -sb'
+alias glo='git log --oneline --graph --decorate --all'

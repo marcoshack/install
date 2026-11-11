@@ -33,7 +33,7 @@ All Linux distribution scripts follow this standardized flow:
 7. **CLI Tools**: Install zsh, fzf, ripgrep, bat, fd
 8. **Programming Languages**: Install Go and Rust (methods vary by distro)
 9. **Starship + Plugins Setup**: Install Starship via package manager (or upstream installer on Ubuntu), plus `zsh-autosuggestions` and `zsh-syntax-highlighting` from the OS package manager, and write `~/.config/starship.toml`
-10. **Zsh Configuration**: Write complete .zshrc with plugins, aliases, and environment
+10. **Zsh Configuration**: Write complete .zshrc with plugins and environment. Aliases live in the shared [config/aliases](config/aliases) (bash+zsh compatible), deployed to `~/.config/shell/aliases` (overwritten on every run) and sourced by `.zshrc` and by a one-line hook appended once to `~/.bashrc`. Add aliases there, not in the scripts; keep the git ones in sync with `windows.ps1`. Only `find='fd'` (Fedora/macOS) stays inline in `.zshrc`
 11. **Default Shell**: Change to zsh
 12. **Neovim Setup**: Install Neovim and write `~/.config/nvim/` with nvim-tree + Telescope, managed by lazy.nvim
 13. **Herdr Setup**: Install herdr (see below) and write `~/.config/herdr/config.toml`
