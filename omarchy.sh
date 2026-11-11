@@ -562,6 +562,8 @@ export PATH="$HOME/.local/bin:$PATH"
 alias ll='ls -lah'
 alias grep='grep --color=auto'
 alias cat='bat --style=plain --paging=never'
+alias gst='git status -sb'
+alias glo='git log --oneline --graph --decorate --all'
 EOF
 fi
 

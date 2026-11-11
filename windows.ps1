@@ -333,7 +333,7 @@ if (Get-Module -ListAvailable -Name PSReadLine) {
 
 # Git aliases
 function gst { git.exe status -sb $args }
-function glo { git.exe log --oneline --decorate $args }
+function glo { git.exe log --oneline --graph --decorate --all $args }
 function gd { git.exe diff $args }
 function gpr { git.exe pull --rebase $args }
 function gdiff { git.exe diff --color=auto --no-index $args }
@@ -515,7 +515,7 @@ Write-Info "  Ctrl+R - Fuzzy search through command history"
 Write-Info ""
 Write-Info "Available Git aliases:"
 Write-Info "  gst    - git status (short)"
-Write-Info "  glo    - git log (oneline)"
+Write-Info "  glo    - git log (oneline graph, all branches)"
 Write-Info "  gd     - git diff"
 Write-Info "  gpr    - git pull --rebase"
 Write-Info "  gdiff  - git diff (no-index)"

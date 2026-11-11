@@ -619,6 +619,8 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias grep='grep --color=auto'
 alias cat='bat --style=plain --paging=never'
+alias gst='git status -sb'
+alias glo='git log --oneline --graph --decorate --all'
 
 # fzf
 [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh

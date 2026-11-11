@@ -564,6 +564,8 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias grep='grep --color=auto'
 alias cat='bat --style=plain --paging=never'
+alias gst='git status -sb'
+alias glo='git log --oneline --graph --decorate --all'
 alias find='fd'
 
 # fzf
