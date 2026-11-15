@@ -4,7 +4,7 @@ title: Architecture
 description: How the per-platform setup scripts and the shared config/ files fit together, and where to start reading.
 tags: [architecture, scripts, config]
 status: draft
-generated: { by: claude-code/claude-opus-5-5, at: 2026-11-11T03:13:51Z }
+generated: { by: claude-code/claude-opus-5-5, at: 2026-11-15T09:06:13Z }
 ---
 
 # Architecture
@@ -24,9 +24,9 @@ The repository sets up a fresh machine with one command per platform. Each scrip
 
 - Each Unix script copies a file from `config/` when run from a local checkout and downloads it from the raw GitHub URL when piped from `curl`, through a `fetch_config <subpath> <dest>` helper. New shipped config goes under `config/` and is deployed the same way.
 - Deployment is copy, not symlink: a config edited on a machine has to be copied back into `config/` to be committed.
-- Existing user config (for example `starship.toml`, `nvim/init.lua`, herdr config) is kept rather than overwritten; the scripts are meant to be safe to re-run.
+- The scripts are meant to be safe to re-run. The Linux scripts keep existing user config (for example `starship.toml`, `nvim/init.lua`, herdr config) rather than overwrite it. `macos.sh` instead checks every step first, applies only what is new, and offers changed shipped configs with a diff ([step status detection](decisions/step-status-detection.md)).
 - Unix scripts re-exec themselves under bash when started from a POSIX `sh`, so that guard must stay first in each file.
-- Step numbers are saved in `~/.install.conf` to let users skip steps, so new steps are appended rather than inserted.
+- Step numbers are saved in `~/.install.conf` (steps to skip, or on macOS steps never to run), so new steps are appended rather than inserted.
 
 ## Where to start
 

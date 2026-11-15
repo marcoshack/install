@@ -15,6 +15,7 @@ Automated setup scripts for macOS, Linux distributions, and Windows PowerShell w
 | ripgrep | ✓ | ✓ | |
 | bat | ✓ | ✓ | |
 | fd | ✓ | ✓ | |
+| eza (ls with colours and icons) | ✓ | | |
 | glow (markdown reader) | ✓ | ✓ | ✓ |
 | tmux | ✓ | ✓ | |
 | Neovim (nvim-tree + Telescope, managed by lazy.nvim) | ✓ | ✓ | |
@@ -52,6 +53,23 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/
 - Homebrew package manager
 - GNU utilities (coreutils, findutils, gnu-sed, grep)
 - SSH key with Keychain integration
+
+**Re-running:** the script checks every step first and shows which are done,
+partial (for example, a tool added to the script since the last run), missing
+or outdated. Press Enter to apply only those. It also accepts `--status`
+(report only), `--new-only` and `--all`. When running remotely, put them after
+`_`:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/macos.sh)" _ --new-only
+```
+
+Steps you never want on a machine go in `~/.install.conf` (`[X]` in the menu).
+When the repo has a newer version of a config file (`~/.zshrc`, shared aliases, tmux, Starship,
+Neovim or herdr), the step shows as outdated. Applying it shows a diff and asks
+before replacing your file, keeping a backup. If you decline, that version isn't
+offered again. Put your own shell additions in `~/.zshrc.local`, which the
+generated `~/.zshrc` sources and never touches.
 
 **Requirements:**
 - macOS 10.15 (Catalina) or later

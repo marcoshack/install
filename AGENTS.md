@@ -33,7 +33,7 @@ All Linux distribution scripts follow this standardized flow:
 7. **CLI Tools**: Install zsh, fzf, ripgrep, bat, fd
 8. **Programming Languages**: Install Go and Rust (methods vary by distro)
 9. **Starship + Plugins Setup**: Install Starship via package manager (or upstream installer on Ubuntu), plus `zsh-autosuggestions` and `zsh-syntax-highlighting` from the OS package manager, and write `~/.config/starship.toml`
-10. **Zsh Configuration**: Write complete .zshrc with plugins and environment. Aliases live in the shared [config/aliases](config/aliases) (bash+zsh compatible), deployed to `~/.config/shell/aliases` (overwritten on every run) and sourced by `.zshrc` and by a one-line hook appended once to `~/.bashrc`. Add aliases there, not in the scripts; keep the git ones in sync with `windows.ps1`. Only `find='fd'` (Fedora/macOS) stays inline in `.zshrc`
+10. **Zsh Configuration**: Write complete .zshrc with plugins and environment. Aliases live in the shared [config/aliases](config/aliases) (bash+zsh compatible), deployed to `~/.config/shell/aliases` (overwritten on every run by the Linux scripts; `macos.sh` shows a diff and asks) and sourced by `.zshrc` and by a one-line hook appended once to `~/.bashrc`. Add aliases there, not in the scripts; keep the git ones in sync with `windows.ps1`. Only `find='fd'` (Fedora/macOS) stays inline in `.zshrc`
 11. **Default Shell**: Change to zsh
 12. **Neovim Setup**: Install Neovim and write `~/.config/nvim/` with nvim-tree + Telescope, managed by lazy.nvim
 13. **Herdr Setup**: Install herdr (see below) and write `~/.config/herdr/config.toml`
@@ -165,6 +165,18 @@ This is required because:
 - Starship's upstream installer and some plugins may need GitHub access
 - SSH key hasn't been uploaded to GitHub yet
 - User instructions include how to reverse this after uploading SSH key
+
+### Step Status Detection (macOS; other scripts to follow)
+
+[macos.sh](macos.sh) checks every step before running anything and prints a table of `done` / `partial` / `missing` / `outdated`. Its menu defaults to `[N]`, which runs only the steps that are not done, plus `[A]` all, `[C]` choose, `[X]` edit the never-run list, and `[Q]` quit. Flags `--status`, `--new-only` and `--all` skip the menu. The remote re-exec passes `"$@"` through, so `bash -c "$(curl …)" _ --new-only` works.
+
+- `check_step <n>` holds one detection case per step. When you add or change a step, update its check too, or re-runs won't notice the change.
+- Package lists (`DEV_TOOLS`, `CLI_TOOLS`, `STARSHIP_PKGS`) feed both `brew install` and the checks, so a tool added to a list shows up as `partial` on configured machines and gets installed by `[N]`.
+- The generated `~/.zshrc` starts with `# managed-by: marcoshack/install macos.sh zshrc v<N>`. **Bump `ZSHRC_VERSION` whenever the step 12 heredoc changes**, otherwise existing machines show it as `done`. Step 12 writes to a temp file, does nothing if it is identical, and otherwise shows a diff and asks before replacing (with a timestamped backup). User additions belong in `~/.zshrc.local`, which the generated file sources.
+- Shipped configs (`aliases`, `tmux.conf`, `starship.toml`, `nvim/init.lua`, `nvim/lazy-lock.json`, `herdr/config.toml`) go through `sync_config <rel> <dest> [ignore-regex]`, never a bare `fetch_config`. It installs a missing file. When the repo copy changed, it shows a diff and asks before replacing (with a timestamped backup). To tell a repo change from a local edit, it records the hash of the repo version last deployed or offered in `~/.local/state/marcoshack-install/`. Declining records that hash too, so the same version isn't offered again. `config_step_state` makes the step show as `outdated` in the status table. herdr's `onboarding = ...` line is ignored when comparing (`HERDR_CONF_IGNORE`). This replaces macOS's old "existing config is kept, never overwritten" rule; the other scripts still follow it until they are ported.
+- `~/.install.conf` is the never-run list (comma-separated step numbers), in the same format as the old skip list. Declining the provided tmux.conf offers to add step 10 to it.
+- `/bin/bash` on macOS is 3.2: no associative arrays, `mapfile` or `${var,,}`.
+- Rationale and rejected alternatives: [docs/decisions/step-status-detection.md](docs/decisions/step-status-detection.md).
 
 ### Safe Prompts Pattern
 

@@ -5,6 +5,10 @@
 #
 # Usage: bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoshack/install/refs/heads/main/macos.sh)"
 #
+# Re-runs detect what is already set up and default to applying only new or
+# missing steps. Options: --status, --new-only, --all (append after `_` when
+# running remotely: bash -c "$(curl ...)" _ --new-only).
+#
 
 set -e
 
@@ -29,13 +33,14 @@ if [ -z "$BASH_VERSION" ]; then
         echo "[ERROR] Could not re-download this script from $SELF_URL" >&2
         exit 1
     fi
-    exec bash -c "$SELF_SRC"
+    exec bash -c "$SELF_SRC" bash "$@"
 fi
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+GRAY='\033[0;90m'
 NC='\033[0m' # No Color
 
 # Logging functions
@@ -93,95 +98,560 @@ fetch_config() {
     fi
 }
 
-# Configuration file path
+# ---------------------------------------------------------------------------
+# Step catalogue, status detection and run menu
+#
+# Before running anything, every step is checked against the machine and shown
+# as done / partial / missing / outdated. The default action applies only the
+# steps that are not done, so re-running the script after new tools are added
+# to it installs just those. Note: /bin/bash on macOS is 3.2, so no associative
+# arrays or mapfile below.
+# ---------------------------------------------------------------------------
+
+# Steps listed here never run on this machine (comma-separated step numbers).
+# Same file and format as the old "steps to skip" list, so saved lists still work.
 CONFIG_FILE="$HOME/.install.conf"
 
-# Define available steps
-log_info ""
-log_info "Available installation steps:"
-log_info "  1. Xcode Command Line Tools"
-log_info "  2. Homebrew Installation"
-log_info "  3. Development Tools Installation"
-log_info "  4. Git Configuration"
-log_info "  5. SSH Key Generation"
-log_info "  6. CLI Tools Installation (fzf, ripgrep, bat, eza, glow, tmux)"
-log_info "  7. Go Installation"
-log_info "  8. Rust Installation"
-log_info "  9. Python and uv Installation"
-log_info " 10. Tmux Configuration"
-log_info " 11. Starship and Zsh Plugins Installation"
-log_info " 12. Zsh Configuration"
-log_info " 13. Neovim Configuration (nvim-tree)"
-log_info " 14. Herdr Installation and Configuration"
-log_info ""
+# Bump ZSHRC_VERSION whenever the .zshrc generated in step 12 changes, so
+# machines with an older copy show it as outdated.
+ZSHRC_VERSION=2
+ZSHRC_MARKER="# managed-by: marcoshack/install macos.sh zshrc"
 
-# Initialize skip flags
-SKIP_STEPS=""
+# Package lists are shared by the install steps and the status checks, so adding
+# a tool here is enough for re-runs to detect and install it.
+DEV_TOOLS="git curl wget vim htop tmux unzip gnu-tar gawk coreutils findutils gnu-sed"
+CLI_TOOLS="fzf ripgrep bat fd eza glow"
+STARSHIP_PKGS="starship zsh-autosuggestions zsh-syntax-highlighting"
 
-# Check if config file exists
-if [ -f "$CONFIG_FILE" ]; then
-    log_info "Found existing configuration at $CONFIG_FILE"
-    SAVED_SKIP_STEPS=$(cat "$CONFIG_FILE")
-    log_info "Saved skip steps: $SAVED_SKIP_STEPS"
-    read -p "Do you want to use this configuration? (Y/n): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Nn]$ ]]; then
-        log_info "Ignoring saved configuration"
-        USE_SAVED_CONFIG=false
-    else
-        log_info "Using saved configuration"
-        SKIP_STEPS="$SAVED_SKIP_STEPS"
-        USE_SAVED_CONFIG=true
-    fi
-else
-    USE_SAVED_CONFIG=false
+STEP_COUNT=14
+STEP_NAMES=(
+    ""
+    "Xcode Command Line Tools"
+    "Homebrew"
+    "Development tools"
+    "Git configuration"
+    "SSH key for GitHub"
+    "CLI tools"
+    "Go"
+    "Rust"
+    "Python and uv"
+    "tmux configuration"
+    "Starship and zsh plugins"
+    "Zsh configuration"
+    "Neovim and plugins"
+    "herdr"
+)
+STEP_STATE=()
+STEP_DETAIL=()
+
+usage() {
+    echo "Usage: macos.sh [--status | --new-only | --all]"
+    echo "  (no option)  show what is already set up, then ask what to run"
+    echo "  --status     only show what is already set up"
+    echo "  --new-only   run only the steps that are not done yet, without asking"
+    echo "  --all        run every step except those listed in ~/.install.conf"
+    echo "Remote: bash -c \"\$(curl -fsSL <url>/macos.sh)\" _ --new-only"
+}
+
+MODE=""
+for arg in "$@"; do
+    case "$arg" in
+        --status) MODE=status ;;
+        --new-only|--update) MODE=new ;;
+        --all) MODE=all ;;
+        -h|--help) usage; exit 0 ;;
+        *) log_error "Unknown option: $arg"; usage; exit 1 ;;
+    esac
+done
+
+# Put Homebrew on PATH (if installed) so the checks below can see it
+if [ -f "/opt/homebrew/bin/brew" ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -f "/usr/local/bin/brew" ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-# If not using saved config, prompt for steps to skip
-if [ "$USE_SAVED_CONFIG" != true ]; then
-    log_info "Enter the numbers of steps to skip (comma-separated, e.g., '3,4,8')."
-    log_info "Press Enter to run all steps."
-    read -p "Steps to skip: " SKIP_INPUT
-
-    if [ -n "$SKIP_INPUT" ]; then
-        SKIP_STEPS="$SKIP_INPUT"
-        log_info ""
-        read -p "Do you want to save this configuration for future use? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "$SKIP_STEPS" > "$CONFIG_FILE"
-            log_info "Configuration saved to $CONFIG_FILE"
-        fi
-    else
-        log_info "No steps will be skipped"
+BREW_FORMULAE=" "
+load_brew_formulae() {
+    BREW_FORMULAE=" "
+    if command -v brew >/dev/null 2>&1; then
+        BREW_FORMULAE=" $(brew list --formula -1 2>/dev/null | tr '\n' ' ') "
     fi
+}
+
+# missing_formulae "<pkg> <pkg> ..." -> prints the ones Homebrew hasn't installed
+missing_formulae() {
+    local out="" f
+    for f in $1; do
+        case "$BREW_FORMULAE" in
+            *" $f "*) ;;
+            *) out="$out $f" ;;
+        esac
+    done
+    echo "${out# }"
+}
+
+set_state() {
+    STEP_STATE[$1]=$2
+    STEP_DETAIL[$1]=$3
+}
+
+# check_formulae <step> "<pkgs>": done, missing (none installed) or partial
+check_formulae() {
+    local m
+    m=$(missing_formulae "$2")
+    if [ -z "$m" ]; then
+        set_state "$1" "done" ""
+    elif [ "$m" = "$(echo $2)" ]; then
+        set_state "$1" missing ""
+    else
+        set_state "$1" partial "missing: $m"
+    fi
+}
+
+zshrc_version() {
+    sed -n "s|^$ZSHRC_MARKER v\([0-9][0-9]*\).*|\1|p" "$HOME/.zshrc" 2>/dev/null | head -1
+}
+
+# Plugins pinned in the deployed lazy-lock.json that lazy.nvim hasn't installed
+missing_nvim_plugins() {
+    local lock="$HOME/.config/nvim/lazy-lock.json"
+    local dir="${XDG_DATA_HOME:-$HOME/.local/share}/nvim/lazy"
+    local out="" p
+    [ -f "$lock" ] || return 0
+    for p in $(sed -n 's/^ *"\([^"]*\)": *{.*/\1/p' "$lock"); do
+        [ -d "$dir/$p" ] || out="$out $p"
+    done
+    echo "${out# }"
+}
+
+# --- Shipped config files (config/ in the repo) -------------------------------
+# A deployed config can differ from the repo copy because the repo changed, or
+# because it was edited locally (e.g. herdr's local-first workflow, or
+# `:Lazy update` rewriting lazy-lock.json). To tell these apart, the hash of the
+# repo version last deployed or offered is recorded in $CONFIG_STATE_DIR:
+#   deployed == repo                 -> same     (done)
+#   recorded == repo, deployed edited -> kept     (done, local edits kept)
+#   nothing recorded, deployed != repo -> differs  (offer the repo version)
+#   recorded != repo, deployed == recorded -> outdated (repo has a newer version)
+#   recorded != repo, deployed edited  -> edited   (newer version + local edits)
+# Declining an offer records the repo hash, so it isn't offered again until the
+# repo copy changes.
+CONFIG_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/marcoshack-install"
+REPO_CONFIG_CACHE=$(mktemp -d)
+trap 'rm -rf "$REPO_CONFIG_CACHE"' EXIT
+
+# repo_config <rel>: prints the path of a cached copy of config/<rel>
+repo_config() {
+    local cached
+    cached="$REPO_CONFIG_CACHE/$(echo "$1" | tr '/' '_')"
+    if [ ! -f "$cached" ]; then
+        fetch_config "$1" "$cached" 2>/dev/null || { rm -f "$cached"; return 1; }
+    fi
+    echo "$cached"
+}
+
+# config_hash <file> [ignore-regex]: hash ignoring lines tools add on their own
+config_hash() {
+    if [ -n "${2:-}" ]; then
+        grep -Ev "$2" "$1" | shasum -a 256 | cut -d' ' -f1
+    else
+        shasum -a 256 < "$1" | cut -d' ' -f1
+    fi
+}
+
+pretty_path() {
+    case "$1" in
+        "$HOME"/*) echo "~${1#"$HOME"}" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+config_state_file() {
+    echo "$CONFIG_STATE_DIR/$(echo "$1" | tr '/' '_').sha256"
+}
+
+record_config() {
+    mkdir -p "$CONFIG_STATE_DIR"
+    echo "$2" > "$(config_state_file "$1")"
+}
+
+# config_status <rel> <dest> [ignore-regex]
+#   -> missing | same | kept | differs | outdated | edited | unknown
+config_status() {
+    local repo repo_hash dest_hash recorded
+    [ -f "$2" ] || { echo missing; return; }
+    repo=$(repo_config "$1") || { echo unknown; return; }
+    repo_hash=$(config_hash "$repo" "${3:-}")
+    dest_hash=$(config_hash "$2" "${3:-}")
+    recorded=$(cat "$(config_state_file "$1")" 2>/dev/null || true)
+    if [ "$dest_hash" = "$repo_hash" ]; then
+        # Record the baseline on machines set up before this tracking existed,
+        # so a later repo change can be told apart from a local edit
+        [ -n "$recorded" ] || record_config "$1" "$repo_hash"
+        echo same
+    elif [ "$recorded" = "$repo_hash" ]; then
+        echo kept
+    elif [ -z "$recorded" ]; then
+        echo differs
+    elif [ "$dest_hash" = "$recorded" ]; then
+        echo outdated
+    else
+        echo edited
+    fi
+}
+
+# config_step_state <step> <rel> <dest> [ignore-regex]: downgrades a "done"
+# step to "outdated" when the repo has a version of this config to offer
+config_step_state() {
+    local st detail=""
+    st=$(config_status "$2" "$3" "${4:-}")
+    case "$st" in
+        differs) detail="$(pretty_path "$3") differs from the repo" ;;
+        outdated) detail="newer $(pretty_path "$3") in the repo" ;;
+        edited) detail="newer $(pretty_path "$3") in the repo; yours has local edits" ;;
+        *) return 0 ;;
+    esac
+    if [ "${STEP_STATE[$1]}" = "done" ]; then
+        set_state "$1" outdated "$detail"
+    else
+        STEP_DETAIL[$1]="${STEP_DETAIL[$1]:+${STEP_DETAIL[$1]}; }$detail"
+    fi
+}
+
+# sync_config <rel> <dest> [ignore-regex]: install a missing config, or show a
+# diff and offer the repo version when it changed. Never replaces silently.
+sync_config() {
+    local rel=$1 dest=$2 ign=${3:-} repo st backup
+    st=$(config_status "$rel" "$dest" "$ign")
+    if [ "$st" = unknown ]; then
+        log_warn "Could not fetch config/$rel; leaving $dest as it is"
+        return 0
+    fi
+    repo=$(repo_config "$rel")
+    case "$st" in
+        missing)
+            mkdir -p "$(dirname "$dest")"
+            cp "$repo" "$dest"
+            record_config "$rel" "$(config_hash "$repo" "$ign")"
+            log_info "✓ Installed $dest"
+            ;;
+        same)
+            record_config "$rel" "$(config_hash "$repo" "$ign")"
+            log_info "✓ $dest is up to date"
+            ;;
+        kept)
+            log_info "✓ $dest has local edits; the repo version hasn't changed since it was last offered"
+            ;;
+        *)
+            case "$st" in
+                outdated) log_info "The repo has a newer $dest:" ;;
+                edited) log_warn "The repo has a newer $dest, and yours has local edits:" ;;
+                differs) log_info "$dest differs from the repo version:" ;;
+            esac
+            log_info "(- yours, + repo)"
+            diff -u "$dest" "$repo" | tail -n +3 || true
+            read -p "Replace $dest with the repo version? A backup is kept. (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                backup="$dest.backup-$(date +%Y%m%d-%H%M%S)"
+                cp "$dest" "$backup"
+                cp "$repo" "$dest"
+                log_info "✓ Updated $dest (backup: $backup)"
+            else
+                log_info "Kept your $dest; this version won't be offered again"
+            fi
+            record_config "$rel" "$(config_hash "$repo" "$ign")"
+            ;;
+    esac
+}
+
+HERDR_CONF_IGNORE='^onboarding *='
+ALIASES_HOOK='[ -f ~/.config/shell/aliases ] && . ~/.config/shell/aliases'
+
+check_step() {
+    local m v
+    case $1 in
+        1)
+            if xcode-select -p >/dev/null 2>&1; then set_state 1 "done" ""; else set_state 1 missing ""; fi ;;
+        2)
+            if command -v brew >/dev/null 2>&1; then set_state 2 "done" ""; else set_state 2 missing ""; fi ;;
+        3)
+            check_formulae 3 "$DEV_TOOLS" ;;
+        4)
+            if [ -n "$(git config --global user.name 2>/dev/null)" ] && [ -n "$(git config --global user.email 2>/dev/null)" ]; then
+                set_state 4 "done" "$(git config --global user.name)"
+            else
+                set_state 4 missing ""
+            fi ;;
+        5)
+            if [ -f "$HOME/.ssh/id_ed25519" ]; then set_state 5 "done" ""; else set_state 5 missing ""; fi ;;
+        6)
+            check_formulae 6 "$CLI_TOOLS"
+            if [ "${STEP_STATE[6]}" = "done" ] && [ ! -f "$HOME/.fzf.zsh" ]; then
+                set_state 6 partial "fzf key bindings not installed"
+            fi ;;
+        7)
+            check_formulae 7 "go"
+            if [ "${STEP_STATE[7]}" = "done" ] && ! grep -q "GOPATH" "$HOME/.profile" 2>/dev/null; then
+                set_state 7 partial "GOPATH not in ~/.profile"
+            fi ;;
+        8)
+            if ! command -v rustc >/dev/null 2>&1 && [ ! -x "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/rustup/bin/rustc" ] && [ ! -x "$HOME/.cargo/bin/rustc" ]; then
+                set_state 8 missing ""
+            elif ! grep -q "CARGO_HOME" "$HOME/.profile" 2>/dev/null; then
+                set_state 8 partial "CARGO_HOME not in ~/.profile"
+            else
+                set_state 8 "done" ""
+            fi ;;
+        9)
+            check_formulae 9 "uv"
+            if [ "${STEP_STATE[9]}" = "done" ] && ! compgen -G "$(uv python dir 2>/dev/null)/cpython-*" >/dev/null; then
+                set_state 9 partial "no uv-managed Python"
+            fi ;;
+        10)
+            if [ -f "$HOME/.tmux.conf" ]; then
+                set_state 10 "done" ""
+                config_step_state 10 "tmux.conf" "$HOME/.tmux.conf"
+            else
+                set_state 10 missing "optional"
+            fi ;;
+        11)
+            check_formulae 11 "$STARSHIP_PKGS"
+            if [ ! -f "$HOME/.config/starship.toml" ]; then
+                if [ "${STEP_STATE[11]}" = "done" ]; then set_state 11 partial "no ~/.config/starship.toml"; fi
+            else
+                config_step_state 11 "starship.toml" "$HOME/.config/starship.toml"
+            fi ;;
+        12)
+            v=$(zshrc_version)
+            if [ ! -f "$HOME/.zshrc" ]; then
+                set_state 12 missing ""
+            elif [ -z "$v" ]; then
+                set_state 12 outdated "not written by this script, or older than v1"
+            elif [ "$v" -lt "$ZSHRC_VERSION" ]; then
+                set_state 12 outdated "v$v -> v$ZSHRC_VERSION"
+            else
+                set_state 12 "done" "v$v"
+            fi
+            if [ ! -f "$HOME/.config/shell/aliases" ]; then
+                if [ "${STEP_STATE[12]}" = "done" ]; then set_state 12 partial "no ~/.config/shell/aliases"; fi
+            else
+                config_step_state 12 "aliases" "$HOME/.config/shell/aliases"
+            fi
+            if [ "${STEP_STATE[12]}" = "done" ] && ! grep -qxF "$ALIASES_HOOK" "$HOME/.bashrc" 2>/dev/null; then
+                # shellcheck disable=SC2088 # display text, not a path
+                set_state 12 partial "~/.bashrc doesn't source the shared aliases"
+            fi ;;
+        13)
+            if ! command -v nvim >/dev/null 2>&1; then
+                set_state 13 missing ""
+            elif [ ! -f "$HOME/.config/nvim/init.lua" ]; then
+                set_state 13 partial "no ~/.config/nvim/init.lua"
+            else
+                m=$(missing_nvim_plugins)
+                if [ -n "$m" ]; then set_state 13 partial "plugins not installed: $m"; else set_state 13 "done" ""; fi
+                config_step_state 13 "nvim/init.lua" "$HOME/.config/nvim/init.lua"
+                config_step_state 13 "nvim/lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
+            fi ;;
+        14)
+            if ! command -v herdr >/dev/null 2>&1; then
+                set_state 14 missing ""
+            elif [ ! -f "$HOME/.config/herdr/config.toml" ]; then
+                set_state 14 partial "no ~/.config/herdr/config.toml"
+            else
+                set_state 14 "done" ""
+                config_step_state 14 "herdr/config.toml" "$HOME/.config/herdr/config.toml" "$HERDR_CONF_IGNORE"
+            fi ;;
+    esac
+}
+
+# in_list <n> "<comma list>"
+in_list() {
+    case ",$(echo "$2" | tr -d ' ')," in
+        *",$1,"*) return 0 ;;
+    esac
+    return 1
+}
+
+NEVER_STEPS=""
+load_never_steps() {
+    NEVER_STEPS=""
+    if [ -f "$CONFIG_FILE" ]; then
+        NEVER_STEPS=$(tr -d ' \n' < "$CONFIG_FILE")
+    fi
+}
+
+save_never_steps() {
+    if [ -n "$NEVER_STEPS" ]; then
+        echo "$NEVER_STEPS" > "$CONFIG_FILE"
+    else
+        rm -f "$CONFIG_FILE"
+    fi
+}
+
+# add_never <n>: remember that step <n> should not be offered again
+add_never() {
+    in_list "$1" "$NEVER_STEPS" && return 0
+    NEVER_STEPS="${NEVER_STEPS:+$NEVER_STEPS,}$1"
+    save_never_steps
+    log_info "Step $1 won't be offered again on this machine (remove it from $CONFIG_FILE to undo)"
+}
+
+PENDING_STEPS=""
+refresh_status() {
+    local n
+    load_brew_formulae
+    load_never_steps
+    PENDING_STEPS=""
+    for ((n = 1; n <= STEP_COUNT; n++)); do
+        check_step "$n"
+        if [ "${STEP_STATE[$n]}" != "done" ] && ! in_list "$n" "$NEVER_STEPS"; then
+            PENDING_STEPS="${PENDING_STEPS:+$PENDING_STEPS,}$n"
+        fi
+    done
+}
+
+print_status() {
+    local n color icon label detail
+    echo ""
+    printf "  %3s  %-26s %s\n" "#" "Step" "Status"
+    for ((n = 1; n <= STEP_COUNT; n++)); do
+        detail="${STEP_DETAIL[$n]}"
+        case "${STEP_STATE[$n]}" in
+            "done") color=$GREEN; icon="✓"; label="done" ;;
+            partial) color=$YELLOW; icon="◐"; label="partial" ;;
+            outdated) color=$YELLOW; icon="↑"; label="outdated" ;;
+            *) color=$RED; icon="✗"; label="missing" ;;
+        esac
+        if in_list "$n" "$NEVER_STEPS"; then
+            color=$GRAY
+            label="$label, never run here"
+        fi
+        printf "  %3d  %-26s ${color}%s %s${NC}%b\n" "$n" "${STEP_NAMES[$n]}" "$icon" "$label" "${detail:+ ${GRAY}($detail)${NC}}"
+    done
+    echo ""
+}
+
+all_steps_except_never() {
+    local n out=""
+    for ((n = 1; n <= STEP_COUNT; n++)); do
+        in_list "$n" "$NEVER_STEPS" || out="${out:+$out,}$n"
+    done
+    echo "$out"
+}
+
+# valid_step_list "<input>": 0 when every entry is a step number
+valid_step_list() {
+    local IFS=',' s
+    for s in $(echo "$1" | tr -d ' '); do
+        case "$s" in
+            ''|*[!0-9]*) return 1 ;;
+        esac
+        [ "$s" -ge 1 ] && [ "$s" -le "$STEP_COUNT" ] || return 1
+    done
+    return 0
+}
+
+refresh_status
+print_status
+
+RUN_STEPS=""
+case "$MODE" in
+    status)
+        if [ -n "$PENDING_STEPS" ]; then
+            log_info "Steps not done yet: $PENDING_STEPS (run with --new-only to apply them)"
+        else
+            log_info "Everything is set up."
+        fi
+        exit 0
+        ;;
+    new)
+        RUN_STEPS="$PENDING_STEPS"
+        ;;
+    all)
+        RUN_STEPS=$(all_steps_except_never)
+        ;;
+    *)
+        while true; do
+            if [ -n "$PENDING_STEPS" ]; then
+                log_info "[N] Apply new/missing only: steps $PENDING_STEPS (default)"
+                DEFAULT_CHOICE=N
+            else
+                log_info "Everything is set up."
+                DEFAULT_CHOICE=Q
+            fi
+            log_info "[A] Run all steps"
+            log_info "[C] Choose steps to run"
+            log_info "[X] Set steps never to run on this machine${NEVER_STEPS:+ (now: $NEVER_STEPS)}"
+            log_info "[Q] Quit"
+            read -p "Choice [$DEFAULT_CHOICE]: " -n 1 -r
+            echo
+            CHOICE="${REPLY:-$DEFAULT_CHOICE}"
+            case "$CHOICE" in
+                [Nn])
+                    if [ -z "$PENDING_STEPS" ]; then
+                        log_info "Nothing new to apply."
+                        exit 0
+                    fi
+                    RUN_STEPS="$PENDING_STEPS"
+                    break
+                    ;;
+                [Aa])
+                    RUN_STEPS=$(all_steps_except_never)
+                    break
+                    ;;
+                [Cc])
+                    read -p "Steps to run (comma-separated, e.g. 6,12): " CHOSEN
+                    if [ -n "$CHOSEN" ] && valid_step_list "$CHOSEN"; then
+                        RUN_STEPS=$(echo "$CHOSEN" | tr -d ' ')
+                        break
+                    fi
+                    log_warn "Enter step numbers between 1 and $STEP_COUNT, separated by commas"
+                    ;;
+                [Xx])
+                    read -p "Steps never to run here (comma-separated, empty to clear): " CHOSEN
+                    if [ -z "$CHOSEN" ] || valid_step_list "$CHOSEN"; then
+                        NEVER_STEPS=$(echo "$CHOSEN" | tr -d ' ')
+                        save_never_steps
+                        refresh_status
+                        print_status
+                    else
+                        log_warn "Enter step numbers between 1 and $STEP_COUNT, separated by commas"
+                    fi
+                    ;;
+                [Qq])
+                    exit 0
+                    ;;
+                *)
+                    log_warn "Unknown choice: $CHOICE"
+                    ;;
+            esac
+        done
+        ;;
+esac
+
+if [ -z "$RUN_STEPS" ]; then
+    log_info "Nothing to do: every step is set up or excluded in $CONFIG_FILE."
+    exit 0
 fi
 
 # Helper function to check if a step should be skipped
 should_skip_step() {
-    local step_num=$1
-    if [ -z "$SKIP_STEPS" ]; then
-        return 1
-    fi
+    ! in_list "$1" "$RUN_STEPS"
+}
 
-    IFS=',' read -ra SKIP_ARRAY <<< "$SKIP_STEPS"
-    for skip_num in "${SKIP_ARRAY[@]}"; do
-        # Trim whitespace
-        skip_num=$(echo "$skip_num" | xargs)
-        if [ "$skip_num" = "$step_num" ]; then
-            return 0
-        fi
-    done
-    return 1
+log_skip() {
+    echo -e "${GRAY}[SKIP]${NC} Step $1: ${STEP_NAMES[$1]} (${STEP_STATE[$1]})"
 }
 
 log_info ""
-log_info "Starting installation..."
+log_info "Running steps: $RUN_STEPS"
 log_info ""
 
 # Step 1: Install Xcode Command Line Tools
 if should_skip_step 1; then
-    log_warn "Skipping Step 1: Xcode Command Line Tools"
+    log_skip 1
 else
     log_info "Step 1: Checking Xcode Command Line Tools..."
     if xcode-select -p &>/dev/null; then
@@ -197,7 +667,7 @@ fi
 
 # Step 2: Install Homebrew
 if should_skip_step 2; then
-    log_warn "Skipping Step 2: Homebrew Installation"
+    log_skip 2
 else
     log_info "Step 2: Checking Homebrew..."
     if command -v brew &>/dev/null; then
@@ -230,27 +700,16 @@ fi
 
 # Step 3: Install development tools and utilities
 if should_skip_step 3; then
-    log_warn "Skipping Step 3: Development Tools Installation"
+    log_skip 3
 else
     log_info "Step 3: Installing development tools and utilities..."
-    brew install \
-        git \
-        curl \
-        wget \
-        vim \
-        htop \
-        tmux \
-        unzip \
-        gnu-tar \
-        gawk \
-        coreutils \
-        findutils \
-        gnu-sed
+    # shellcheck disable=SC2086 # word-split the package list on purpose
+    brew install $DEV_TOOLS
 fi
 
 # Step 4: Configure Git
 if should_skip_step 4; then
-    log_warn "Skipping Step 4: Git Configuration"
+    log_skip 4
 else
     log_info "Step 4: Configuring Git..."
 
@@ -287,7 +746,7 @@ fi
 
 # Step 5: Generate SSH key for GitHub
 if should_skip_step 5; then
-    log_warn "Skipping Step 5: SSH Key Generation"
+    log_skip 5
 else
     log_info "Step 5: Setting up SSH key for GitHub..."
     SSH_KEY_PATH="$HOME/.ssh/id_ed25519"
@@ -350,16 +809,11 @@ fi
 
 # Step 6: Install CLI tools
 if should_skip_step 6; then
-    log_warn "Skipping Step 6: CLI Tools Installation (fzf, ripgrep, bat, eza, glow, tmux)"
+    log_skip 6
 else
     log_info "Step 6: Installing fzf, ripgrep, bat, fd, eza, and glow..."
-    brew install \
-        fzf \
-        ripgrep \
-        bat \
-        fd \
-        eza \
-        glow
+    # shellcheck disable=SC2086
+    brew install $CLI_TOOLS
 
     # Install fzf key bindings and completion
     log_info "Installing fzf key bindings..."
@@ -368,7 +822,7 @@ fi
 
 # Step 7: Install Go
 if should_skip_step 7; then
-    log_warn "Skipping Step 7: Go Installation"
+    log_skip 7
 else
     log_info "Step 7: Installing Go..."
     brew install go
@@ -394,7 +848,7 @@ fi
 
 # Step 8: Install Rust
 if should_skip_step 8; then
-    log_warn "Skipping Step 8: Rust Installation"
+    log_skip 8
 else
     log_info "Step 8: Installing Rust via rustup..."
 
@@ -438,7 +892,7 @@ fi
 
 # Step 9: Install Python and uv
 if should_skip_step 9; then
-    log_warn "Skipping Step 9: Python and uv Installation"
+    log_skip 9
 else
     log_info "Step 9: Installing Python and uv..."
 
@@ -454,69 +908,50 @@ fi
 
 # Step 10: Configure tmux
 if should_skip_step 10; then
-    log_warn "Skipping Step 10: Tmux Configuration"
+    log_skip 10
 else
     log_info "Step 10: Setting up tmux configuration..."
     TMUX_CONF_PATH="$HOME/.tmux.conf"
 
     if [ -f "$TMUX_CONF_PATH" ]; then
-        log_warn "tmux configuration already exists at $TMUX_CONF_PATH"
-        read -p "Do you want to use the provided tmux.conf? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            INSTALL_TMUX_CONF=true
-        fi
+        sync_config "tmux.conf" "$TMUX_CONF_PATH"
     else
         read -p "Do you want to use the provided tmux.conf? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            INSTALL_TMUX_CONF=true
+            sync_config "tmux.conf" "$TMUX_CONF_PATH"
+        else
+            log_info "Skipping tmux configuration"
+            read -p "Stop offering the provided tmux.conf on future runs? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                add_never 10
+            fi
         fi
-    fi
-
-    if [ "$INSTALL_TMUX_CONF" = true ]; then
-        log_info "Installing tmux configuration..."
-        fetch_config "tmux.conf" "$TMUX_CONF_PATH"
-        log_info "✓ tmux configuration installed successfully"
-    else
-        log_info "Skipping tmux configuration"
     fi
 fi
 
 # Step 11: Install Starship and Zsh plugins
 if should_skip_step 11; then
-    log_warn "Skipping Step 11: Starship and Zsh Plugins Installation"
+    log_skip 11
 else
     log_info "Step 11: Installing Starship prompt and zsh plugins..."
-    brew install \
-        starship \
-        zsh-autosuggestions \
-        zsh-syntax-highlighting
+    # shellcheck disable=SC2086
+    brew install $STARSHIP_PKGS
 
     # Write starship config
     STARSHIP_CONFIG_DIR="$HOME/.config"
     STARSHIP_CONFIG_PATH="$STARSHIP_CONFIG_DIR/starship.toml"
     mkdir -p "$STARSHIP_CONFIG_DIR"
 
-    if [ -f "$STARSHIP_CONFIG_PATH" ]; then
-        log_warn "Starship config already exists at $STARSHIP_CONFIG_PATH - keeping existing config"
-    else
-        log_info "Installing Starship configuration..."
-        fetch_config "starship.toml" "$STARSHIP_CONFIG_PATH"
-        log_info "✓ Starship config written to $STARSHIP_CONFIG_PATH"
-    fi
+    sync_config "starship.toml" "$STARSHIP_CONFIG_PATH"
 fi
 
 # Step 12: Create/update .zshrc
 if should_skip_step 12; then
-    log_warn "Skipping Step 12: Zsh Configuration"
+    log_skip 12
 else
     log_info "Step 12: Configuring .zshrc..."
-
-    if [ -f "$HOME/.zshrc" ]; then
-        cp "$HOME/.zshrc" "$HOME/.zshrc.$(date +%Y%m%d)"
-        log_info "Backed up existing .zshrc to ~/.zshrc.$(date +%Y%m%d)"
-    fi
 
     # Determine Homebrew prefix
     if [ -f "/opt/homebrew/bin/brew" ]; then
@@ -525,7 +960,13 @@ else
         BREW_PREFIX="/usr/local"
     fi
 
-    cat > "$HOME/.zshrc" << EOF
+    ZSHRC_NEW=$(mktemp)
+    cat > "$ZSHRC_NEW" << EOF
+$ZSHRC_MARKER v$ZSHRC_VERSION
+# Written by https://github.com/marcoshack/install and replaced (after showing
+# a diff) when a newer version is applied. Put your own additions in
+# ~/.zshrc.local, which is sourced at the end and never touched.
+
 # Homebrew
 eval "\$(${BREW_PREFIX}/bin/brew shellenv)"
 
@@ -566,23 +1007,47 @@ alias find='fd'
 
 # fzf
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+# Local additions (kept across re-runs of the install script)
+[ -f "\$HOME/.zshrc.local" ] && source "\$HOME/.zshrc.local"
 EOF
 
+    if [ ! -f "$HOME/.zshrc" ]; then
+        mv "$ZSHRC_NEW" "$HOME/.zshrc"
+        log_info "✓ Wrote ~/.zshrc"
+    elif cmp -s "$ZSHRC_NEW" "$HOME/.zshrc"; then
+        rm -f "$ZSHRC_NEW"
+        log_info "✓ ~/.zshrc is already up to date"
+    else
+        log_info "Changes to ~/.zshrc (- current, + new):"
+        diff -u "$HOME/.zshrc" "$ZSHRC_NEW" | tail -n +3 || true
+        log_warn "Lines marked - are lost unless you move them to ~/.zshrc.local first"
+        read -p "Replace ~/.zshrc with the new version? A backup is kept. (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            ZSHRC_BACKUP="$HOME/.zshrc.backup-$(date +%Y%m%d-%H%M%S)"
+            cp "$HOME/.zshrc" "$ZSHRC_BACKUP"
+            mv "$ZSHRC_NEW" "$HOME/.zshrc"
+            log_info "✓ Replaced ~/.zshrc (backup: $ZSHRC_BACKUP)"
+        else
+            rm -f "$ZSHRC_NEW"
+            log_info "Kept the existing ~/.zshrc. To stop being offered this, add 12 with [X] in the menu"
+        fi
+    fi
+
     # Shared aliases: both ~/.zshrc (above) and ~/.bashrc source this file
-    mkdir -p "$HOME/.config/shell"
-    fetch_config "aliases" "$HOME/.config/shell/aliases"
-    ALIASES_HOOK='[ -f ~/.config/shell/aliases ] && . ~/.config/shell/aliases'
+    sync_config "aliases" "$HOME/.config/shell/aliases"
     if ! grep -qxF "$ALIASES_HOOK" "$HOME/.bashrc" 2>/dev/null; then
         printf '\n# Shared aliases (marcoshack/install)\n%s\n' "$ALIASES_HOOK" >> "$HOME/.bashrc"
+        log_info "✓ ~/.bashrc now sources ~/.config/shell/aliases"
     fi
-    log_info "✓ Shared aliases written to ~/.config/shell/aliases (sourced by .zshrc and .bashrc)"
 fi
 
 # macOS doesn't need shell change step since zsh is default
 
 # Step 13: Configure Neovim with nvim-tree
 if should_skip_step 13; then
-    log_warn "Skipping Step 13: Neovim Configuration"
+    log_skip 13
 else
     log_info "Step 13: Setting up Neovim with nvim-tree..."
 
@@ -596,21 +1061,15 @@ else
     NVIM_CONFIG_DIR="$HOME/.config/nvim"
     mkdir -p "$NVIM_CONFIG_DIR"
 
-    if [ -f "$NVIM_CONFIG_DIR/init.lua" ]; then
-        log_warn "Neovim config already exists at $NVIM_CONFIG_DIR/init.lua - keeping existing config"
-    else
-        log_info "Installing Neovim configuration..."
-        fetch_config "nvim/init.lua" "$NVIM_CONFIG_DIR/init.lua"
-        # Lockfile pins plugins to reviewed commits; best-effort (tolerate a 404 before first publish)
-        fetch_config "nvim/lazy-lock.json" "$NVIM_CONFIG_DIR/lazy-lock.json" 2>/dev/null || \
-            log_warn "Could not fetch lazy-lock.json; plugins will resolve to their latest stable tags"
-    fi
+    # Install the config, or offer the repo version (with a diff) when it changed.
+    # The lockfile pins plugins to reviewed commits.
+    sync_config "nvim/init.lua" "$NVIM_CONFIG_DIR/init.lua"
+    sync_config "nvim/lazy-lock.json" "$NVIM_CONFIG_DIR/lazy-lock.json"
 
     # Install any plugins the config declares but that aren't installed yet. Runs on
     # every invocation (not just fresh installs) so re-running the script picks up
     # newly-added plugins. `+Lazy! restore` clones missing plugins and checks out the
-    # lockfile commit; plugins already at the pinned commit are left untouched. The
-    # existing init.lua is never overwritten, so local edits are preserved.
+    # lockfile commit; plugins already at the pinned commit are left untouched.
     log_info "Installing Neovim plugins via lazy.nvim (this may take a moment)..."
     if [ -f "$NVIM_CONFIG_DIR/lazy-lock.json" ]; then
         nvim --headless "+Lazy! restore" +qa
@@ -622,7 +1081,7 @@ fi
 
 # Step 14: Install herdr (agent multiplexer) and its config
 if should_skip_step 14; then
-    log_warn "Skipping Step 14: Herdr Installation and Configuration"
+    log_skip 14
 else
     log_info "Step 14: Setting up herdr..."
 
@@ -637,13 +1096,8 @@ else
     HERDR_CONF_PATH="$HERDR_CONF_DIR/config.toml"
     mkdir -p "$HERDR_CONF_DIR"
 
-    if [ -f "$HERDR_CONF_PATH" ]; then
-        log_warn "herdr config already exists at $HERDR_CONF_PATH - keeping existing config"
-    else
-        log_info "Installing herdr configuration..."
-        fetch_config "herdr/config.toml" "$HERDR_CONF_PATH"
-        log_info "✓ herdr config written to $HERDR_CONF_PATH"
-    fi
+    # herdr adds `onboarding = ...` on first launch; ignore it when comparing
+    sync_config "herdr/config.toml" "$HERDR_CONF_PATH" "$HERDR_CONF_IGNORE"
 fi
 
 # Verify installations

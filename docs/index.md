@@ -10,6 +10,10 @@ Automated, single-file setup scripts for macOS, Fedora, Ubuntu, Omarchy and Wind
 
 * [Architecture](architecture.md) - How the per-platform setup scripts and the shared config/ files fit together, and where to start reading.
 
+## Design Decisions
+
+* [Design Decisions](decisions/index.md) - Why the scripts work the way they do, and the alternatives rejected.
+
 ## Guides
 
 * [Agent sound notifications over SSH](agent-sound-notifications.md) - How to play a distinct sound on the Mac when a coding agent on a remote Linux host, inside herdr or tmux, needs input or finishes.

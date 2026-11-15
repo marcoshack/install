@@ -1,6 +1,7 @@
 # Shared shell aliases, managed by marcoshack/install (config/aliases).
 # Sourced by both ~/.zshrc and ~/.bashrc, so keep everything valid in bash AND zsh.
-# Re-running the install script overwrites this file; put personal aliases elsewhere.
+# Re-running the install script may replace this file (macos.sh shows a diff and
+# asks first); put personal aliases in ~/.zshrc.local or ~/.bashrc instead.
 
 # Files and directories: eza adds colours and Nerd Font icons when installed;
 # otherwise plain ls, with colour turned on for BSD ls (macOS)
@@ -22,6 +23,7 @@ alias ...='cd ../..'
 # Tools
 alias grep='grep --color=auto'
 alias cat='bat --style=plain --paging=never'
+alias g='glow'
 
 # Git (kept in sync with the PowerShell functions in windows.ps1)
 alias gst='git status -sb'
