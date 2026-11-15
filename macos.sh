@@ -41,6 +41,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 GRAY='\033[0;90m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Logging functions
@@ -260,6 +261,16 @@ config_hash() {
     fi
 }
 
+# show_diff <current> <new>: unified diff with removed lines in red, added
+# lines in green and hunk headers in cyan (awk -v turns \033 into ESC)
+show_diff() {
+    diff -u "$1" "$2" | tail -n +3 | awk -v r="$RED" -v g="$GREEN" -v c="$CYAN" -v n="$NC" '
+        /^@@/ { print c $0 n; next }
+        /^-/  { print r $0 n; next }
+        /^\+/ { print g $0 n; next }
+        { print }'
+}
+
 pretty_path() {
     case "$1" in
         "$HOME"/*) echo "~${1#"$HOME"}" ;;
@@ -350,7 +361,7 @@ sync_config() {
                 differs) log_info "$dest differs from the repo version:" ;;
             esac
             log_info "(- yours, + repo)"
-            diff -u "$dest" "$repo" | tail -n +3 || true
+            show_diff "$dest" "$repo"
             read -p "Replace $dest with the repo version? A backup is kept. (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -1020,7 +1031,7 @@ EOF
         log_info "✓ ~/.zshrc is already up to date"
     else
         log_info "Changes to ~/.zshrc (- current, + new):"
-        diff -u "$HOME/.zshrc" "$ZSHRC_NEW" | tail -n +3 || true
+        show_diff "$HOME/.zshrc" "$ZSHRC_NEW"
         log_warn "Lines marked - are lost unless you move them to ~/.zshrc.local first"
         read -p "Replace ~/.zshrc with the new version? A backup is kept. (y/N): " -n 1 -r
         echo
