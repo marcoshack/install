@@ -409,12 +409,13 @@ else
     fi
 
     if [ "$SKIP_RUST_INSTALL" != true ]; then
-        # Install rustup-init via Homebrew and run it
-        brew install rustup-init
-        rustup-init -y --no-modify-path
-
-        # Source cargo env for current session
-        source "$HOME/.cargo/env"
+        # Homebrew's rustup (formerly rustup-init) is keg-only: it isn't linked
+        # into the brew prefix, so put its bin (rustup plus the rustc/cargo
+        # proxies) on PATH and install the stable toolchain through it
+        brew install rustup
+        RUSTUP_BIN="$(brew --prefix rustup)/bin"
+        export PATH="$RUSTUP_BIN:$HOME/.cargo/bin:$PATH"
+        rustup default stable
 
         log_info "✓ Rust installed successfully"
     fi
@@ -547,8 +548,10 @@ source ${BREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 export GOPATH=\$HOME/go
 export PATH=\$PATH:\$GOPATH/bin
 
-# Rust environment
-[ -f "\$HOME/.cargo/env" ] && source "\$HOME/.cargo/env"
+# Rust: Homebrew's rustup is keg-only (not linked, so it can't clash with other
+# Rust installs); its bin holds the rustc/cargo proxies. ~/.cargo/bin holds
+# tools from \`cargo install\`.
+export PATH="${BREW_PREFIX}/opt/rustup/bin:\$HOME/.cargo/bin:\$PATH"
 
 # Local bin (Python uv etc.)
 export PATH="\$HOME/.local/bin:\$PATH"
