@@ -2,10 +2,20 @@
 # Sourced by both ~/.zshrc and ~/.bashrc, so keep everything valid in bash AND zsh.
 # Re-running the install script overwrites this file; put personal aliases elsewhere.
 
-# Files and directories
-alias ll='ls -lah'
-alias la='ls -A'
-alias l='ls -CF'
+# Files and directories: eza adds colours and Nerd Font icons when installed;
+# otherwise plain ls, with colour turned on for BSD ls (macOS)
+if command -v eza >/dev/null 2>&1; then
+    alias ls='eza --icons=auto --group-directories-first'
+    alias ll='eza -lah --icons=auto --group-directories-first --git'
+    alias la='eza -a --icons=auto --group-directories-first'
+    alias l='eza --icons=auto --group-directories-first'
+    alias lt='eza --tree --level=2 --icons=auto --group-directories-first'
+else
+    export CLICOLOR=1
+    alias ll='ls -lah'
+    alias la='ls -A'
+    alias l='ls -CF'
+fi
 alias ..='cd ..'
 alias ...='cd ../..'
 

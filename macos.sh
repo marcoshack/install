@@ -104,7 +104,7 @@ log_info "  2. Homebrew Installation"
 log_info "  3. Development Tools Installation"
 log_info "  4. Git Configuration"
 log_info "  5. SSH Key Generation"
-log_info "  6. CLI Tools Installation (fzf, ripgrep, bat, glow, tmux)"
+log_info "  6. CLI Tools Installation (fzf, ripgrep, bat, eza, glow, tmux)"
 log_info "  7. Go Installation"
 log_info "  8. Rust Installation"
 log_info "  9. Python and uv Installation"
@@ -350,14 +350,15 @@ fi
 
 # Step 6: Install CLI tools
 if should_skip_step 6; then
-    log_warn "Skipping Step 6: CLI Tools Installation (fzf, ripgrep, bat, glow, tmux)"
+    log_warn "Skipping Step 6: CLI Tools Installation (fzf, ripgrep, bat, eza, glow, tmux)"
 else
-    log_info "Step 6: Installing fzf, ripgrep, bat, fd, and glow..."
+    log_info "Step 6: Installing fzf, ripgrep, bat, fd, eza, and glow..."
     brew install \
         fzf \
         ripgrep \
         bat \
         fd \
+        eza \
         glow
 
     # Install fzf key bindings and completion
@@ -656,6 +657,7 @@ command -v fzf >/dev/null 2>&1 && log_info "✓ fzf installed" || log_error "✗
 command -v rg >/dev/null 2>&1 && log_info "✓ ripgrep installed" || log_error "✗ ripgrep installation failed"
 command -v bat >/dev/null 2>&1 && log_info "✓ bat installed" || log_error "✗ bat installation failed"
 command -v fd >/dev/null 2>&1 && log_info "✓ fd installed" || log_error "✗ fd installation failed"
+command -v eza >/dev/null 2>&1 && log_info "✓ eza installed" || log_error "✗ eza installation failed"
 command -v glow >/dev/null 2>&1 && log_info "✓ glow installed" || log_error "✗ glow installation failed"
 command -v tmux >/dev/null 2>&1 && log_info "✓ tmux installed" || log_error "✗ tmux installation failed"
 command -v starship >/dev/null 2>&1 && log_info "✓ Starship: $(starship --version | head -1)" || log_error "✗ Starship installation failed"
@@ -701,6 +703,7 @@ log_info "  - fzf (fuzzy finder)"
 log_info "  - ripgrep (fast grep alternative)"
 log_info "  - bat (cat with syntax highlighting)"
 log_info "  - fd (fast find alternative)"
+log_info "  - eza (ls with colours and icons; ll, la, lt aliases)"
 log_info "  - glow (markdown reader)"
 log_info "  - tmux (terminal multiplexer)"
 log_info "  - Neovim with nvim-tree (managed by lazy.nvim, toggle with <leader>e)"
